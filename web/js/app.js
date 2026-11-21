@@ -4,6 +4,7 @@
 import { api, ErrorApi } from "./api.js";
 import { $, esc, dinero, avisar, confirmar, celebrar, cargando } from "./ui.js";
 import { dibujoProducto } from "./dibujos.js";
+import { mostrarAcceso } from "./acceso.js";
 
 // ---------- Íconos (trazos simples, heredan el color) ----------
 const ICONO = {
@@ -106,14 +107,17 @@ function pintarNav(actual) {
 }
 
 function sinSesion() {
-  // Temporal: la pantalla de ingreso y registro llega en el paso 7
+  document.body.classList.add("sin-sesion");
   $("#nav").innerHTML = "";
-  $("#contenido").innerHTML = `
-    <img src="img/logo_muro.jpg" alt="Stop 44" style="max-width:420px;margin:10px auto">
-    <div class="panel-roto vacio" style="max-width:460px;margin:0 auto">
-      <p>La pantalla para ingresar llega en el paso 7. Por ahora ingresa desde la página de pruebas y vuelve aquí.</p>
-      <a class="btn btn-rojo" href="/docs">Ir a la página de pruebas</a>
-    </div>`;
+  mostrarAcceso($("#contenido"), (usuario, esNueva) => {
+    sesion = usuario;
+    document.body.classList.remove("sin-sesion");
+    pintarCabecera();
+    if (!location.hash || location.hash === "#muestrario") location.hash = "#vender";
+    mostrar();
+    celebrar(esNueva ? "Cuenta creada" : `Hola, ${usuario.nombre.split(" ")[0]}`,
+             esNueva ? "Ya eres el administrador de Stop 44" : "", 1300);
+  });
 }
 
 function mostrar() {
@@ -136,9 +140,9 @@ async function iniciar() {
     if (!(e instanceof ErrorApi) || e.estado !== 401) avisar(e.message, "error");
   }
   pintarCabecera();
-  if (sesion) mostrar(); else sinSesion();
+  if (sesion) { document.body.classList.remove("sin-sesion"); mostrar(); } else sinSesion();
 }
 
-window.addEventListener("hashchange", () => { if (sesion) mostrar(); else if (location.hash === "#muestrario") muestrario($("#contenido")); });
+window.addEventListener("hashchange", () => { if (sesion) mostrar(); });
 iniciar();
 

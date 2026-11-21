@@ -225,3 +225,31 @@ img { max-width: 100%; display: block; }
 /* dibujo de producto dentro de una tarjeta */
 .dibujo { height: 70px; }
 .dibujo svg { width: 100%; height: 100%; }
+
+/* ---------- Ingresar y crear cuenta ---------- */
+body.sin-sesion .cabecera, body.sin-sesion .nav { display: none; }
+.acceso { max-width: 440px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 0 40px; display: flex; flex-direction: column; gap: 6px; }
+.hueco {
+  width: 100%;
+  -webkit-mask-image: radial-gradient(ellipse 72% 66% at 50% 52%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(ellipse 72% 66% at 50% 52%, #000 62%, transparent 100%);
+  animation: golpe-logo 0.7s var(--rebote) both;
+}
+@keyframes golpe-logo { from { transform: scale(0.3) rotate(-8deg); opacity: 0; } }
+.formulario-acceso { display: flex; flex-direction: column; gap: 14px; padding: 30px 22px 30px; }
+.formulario-acceso.entra { animation: entra 0.35s ease-out; }
+.formulario-acceso.tiembla { animation: tiembla 0.4s; }
+@keyframes entra { from { opacity: 0; transform: translateY(12px); } }
+@keyframes tiembla { 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+.acceso-titulo { font-family: var(--letra-titulo); font-weight: 400; font-size: 26px; line-height: 1.15; }
+.nota-acceso { color: #d0d0d0; line-height: 1.45; font-size: 15px; margin-top: -4px; }
+.con-boton { position: relative; display: block; }
+.con-boton input { padding-right: 50px; }
+.ver-clave { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--gris); padding: 8px; cursor: pointer; border-radius: 8px; }
+.ver-clave.activo { color: var(--rojo); }
+.error-form { color: #ff8a92; font-weight: 600; min-height: 1.2em; margin: -4px 0 -6px; }
+.cambiar { color: var(--blanco); align-self: center; font-size: 15px; }
+.pendiente { text-align: center; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.pendiente p { color: #d0d0d0; line-height: 1.5; }
+.octagono.chico { width: 96px; height: 96px; padding: 5px; margin: 0; }
+.octagono.chico svg { width: 42px; height: 50px; }

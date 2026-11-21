@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import threading
 from pathlib import Path
 
 ESQUEMA = """
@@ -89,17 +90,48 @@ def ruta_por_defecto() -> Path:
     return ruta
 
 
-def conectar(ruta: str | Path | None = None) -> sqlite3.Connection:
-    """Abre la base de datos y crea las tablas si no existen.
-
-    Usa ruta=":memory:" para una base de datos temporal (pruebas).
-    """
-    destino = ":memory:" if ruta == ":memory:" else str(ruta or ruta_por_defecto())
-    con = sqlite3.connect(destino, check_same_thread=False)
+def _abrir(destino: str) -> sqlite3.Connection:
+    con = sqlite3.connect(destino, check_same_thread=False, timeout=15)
     con.row_factory = sqlite3.Row          # filas accesibles por nombre: fila["precio"]
     con.execute("PRAGMA foreign_keys = ON")
+    if destino != ":memory:":
+        con.execute("PRAGMA journal_mode = WAL")   # varios pueden leer mientras otro escribe
+    return con
+
+
+def conectar(ruta: str | Path | None = None) -> sqlite3.Connection:
+    """Abre UNA conexión y crea las tablas si no existen (útil en pruebas y scripts).
+
+    Usa ruta=":memory:" para una base de datos temporal.
+    """
+    con = _abrir(":memory:" if ruta == ":memory:" else str(ruta or ruta_por_defecto()))
     con.executescript(ESQUEMA)
     return con
+
+
+class BaseDeDatos:
+    """Da a cada hilo del servidor su propia conexión al mismo archivo.
+
+    Una conexión de SQLite no se puede usar desde dos hilos al mismo tiempo; si el
+    servidor atiende varios pedidos a la vez, cada uno usa la suya y SQLite se
+    encarga de que no se pisen.
+    """
+
+    def __init__(self, ruta: str | Path | None = None):
+        self.ruta = ":memory:" if ruta == ":memory:" else str(ruta or ruta_por_defecto())
+        self._local = threading.local()
+        # En memoria (pruebas) no se puede abrir otra conexión a la misma base: se comparte una
+        self._unica = conectar(":memory:") if self.ruta == ":memory:" else None
+        if self._unica is None:
+            conectar(self.ruta).close()            # crea las tablas una sola vez
+
+    @property
+    def con(self) -> sqlite3.Connection:
+        if self._unica is not None:
+            return self._unica
+        if getattr(self._local, "con", None) is None:
+            self._local.con = _abrir(self.ruta)
+        return self._local.con
 
 
 def tablas(con: sqlite3.Connection) -> list[str]:

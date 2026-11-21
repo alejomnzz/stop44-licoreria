@@ -41,7 +41,11 @@ def tipo_de_imagen(datos: bytes) -> str | None:
 
 class Tienda:
     def __init__(self, ruta: str | Path | None = None):
-        self.con = db.conectar(ruta)
+        self.bd = db.BaseDeDatos(ruta)
+
+    @property
+    def con(self) -> sqlite3.Connection:
+        return self.bd.con          # la conexión de este hilo
 
     # ------------------------------------------------------------------ util
     def _ahora(self) -> datetime:
@@ -328,6 +332,13 @@ class Tienda:
             dias[f] = datos[f]
             f = sumar_dias(f, 1)
         return dias
+
+    def ventas_por_hora(self, desde: str, hasta: str) -> dict[int, int]:
+        """{hora: total} de 0 a 23, para saber a qué horas se vende más."""
+        datos = {h: t for h, t in self.con.execute(
+            "SELECT CAST(substr(hora, 1, 2) AS INTEGER), SUM(total) FROM ventas"
+            " WHERE anulada = 0 AND fecha BETWEEN ? AND ? GROUP BY 1", (desde, hasta))}
+        return {h: datos.get(h, 0) for h in range(24)}
 
     def texto_cierre(self, fecha: str) -> str:
         """Resumen del día listo para pegar en WhatsApp."""

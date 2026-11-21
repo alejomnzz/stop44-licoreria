@@ -8,6 +8,8 @@ import { mostrarAcceso } from "./acceso.js";
 import { mostrarVender } from "./vender.js";
 import { mostrarInventario } from "./inventario.js";
 import { mostrarVentas } from "./ventas.js";
+import { mostrarResumen } from "./resumen.js";
+import { mostrarUsuarios, cambiarMiClave, actualizarAviso } from "./usuarios.js";
 
 // ---------- Íconos (trazos simples, heredan el color) ----------
 const ICONO = {
@@ -21,22 +23,12 @@ const icono = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 
 // ---------- Pantallas ----------
 // Cada pantalla es una función que recibe el contenedor y la sesión.
-// Las de verdad llegan en los próximos pasos; por ahora muestran en qué paso llegan.
-const enConstruccion = (titulo, paso) => (el) => {
-  el.innerHTML = `
-    <h1 class="titulo">${titulo}</h1>
-    <div class="panel-roto vacio">
-      <p>Esta pantalla llega en el paso ${paso}.</p>
-      <a class="btn btn-rojo" href="#muestrario">Ver el muestrario del diseño</a>
-    </div>`;
-};
-
 export const PANTALLAS = {
   vender:     { nombre: "Vender",     soloAdmin: false, mostrar: mostrarVender },
   inventario: { nombre: "Inventario", soloAdmin: true,  mostrar: mostrarInventario },
   ventas:     { nombre: "Ventas",     soloAdmin: false, mostrar: mostrarVentas },
-  resumen:    { nombre: "Resumen",    soloAdmin: true,  mostrar: enConstruccion("Resumen", 11) },
-  usuarios:   { nombre: "Usuarios",   soloAdmin: true,  mostrar: enConstruccion("Usuarios", 11) },
+  resumen:    { nombre: "Resumen",    soloAdmin: true,  mostrar: mostrarResumen },
+  usuarios:   { nombre: "Usuarios",   soloAdmin: true,  mostrar: mostrarUsuarios },
 };
 
 // Muestrario: todas las piezas del diseño en un solo lugar, para revisarlas
@@ -93,9 +85,10 @@ let sesion = null;
 
 function pintarCabecera() {
   $("#quien").innerHTML = sesion
-    ? `<div style="text-align:right"><div class="nombre">${esc(sesion.nombre)}</div><div class="rol">${sesion.rol === "admin" ? "Administrador" : "Vendedor"}</div></div>
+    ? `<button class="mi-cuenta" id="mi-cuenta" title="Cambiar mi contraseña"><span class="nombre">${esc(sesion.nombre)}</span><span class="rol">${sesion.rol === "admin" ? "Administrador" : "Vendedor"}</span></button>
        <button class="btn btn-chico" id="salir" style="border-color:#fff">Salir</button>`
     : "";
+  $("#mi-cuenta")?.addEventListener("click", cambiarMiClave);
   $("#salir")?.addEventListener("click", async () => {
     await api.post("/api/auth/salir");
     sesion = null;
@@ -130,6 +123,7 @@ function mostrar() {
   const pantalla = PANTALLAS[id];
   if (!pantalla || (pantalla.soloAdmin && sesion.rol !== "admin")) { location.hash = "#vender"; return; }
   pintarNav(id);
+  if (sesion.rol === "admin") actualizarAviso();
   pantalla.mostrar(el, sesion);
   window.scrollTo(0, 0);
 }

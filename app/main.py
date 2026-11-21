@@ -33,7 +33,7 @@ CARPETA_WEB = Path(__file__).resolve().parent.parent / "web"
 app = FastAPI(title="Stop 44", description="Inventario y ventas de la licorería Stop 44")
 
 tienda = Tienda()                       # abre datos/stop44.db (o la ruta de STOP44_DB)
-cuentas = Cuentas(tienda.con)           # comparten la misma conexión
+cuentas = Cuentas(tienda.bd)            # comparten la misma base de datos
 CLAVE_FIRMA = secreto()
 
 
@@ -45,7 +45,9 @@ async def error_de_negocio(_: Request, exc: Exception):
 
 
 # ------------------------------------------------------------------- sesión
-def usuario_actual(request: Request) -> Usuario:
+# Todas las funciones son "async": así FastAPI las corre una por una en el mismo
+# hilo y la conexión a SQLite nunca se usa desde dos hilos al mismo tiempo.
+async def usuario_actual(request: Request) -> Usuario:
     token = request.cookies.get(COOKIE)
     auth = request.headers.get("Authorization", "")
     if not token and auth.startswith("Bearer "):
@@ -57,7 +59,7 @@ def usuario_actual(request: Request) -> Usuario:
     return u
 
 
-def solo_admin(u: Annotated[Usuario, Depends(usuario_actual)]) -> Usuario:
+async def solo_admin(u: Annotated[Usuario, Depends(usuario_actual)]) -> Usuario:
     if not u.es_admin:
         raise HTTPException(403, "Solo un administrador puede hacer esto.")
     return u
@@ -333,6 +335,17 @@ async def resumen(_: Admin, desde: str | None = None, hasta: str | None = None):
 @app.get("/api/resumen/dias", tags=["Reportes"])
 async def totales_por_dia(desde: str, hasta: str, _: Admin):
     return tienda.totales_por_dia(desde, hasta)
+
+
+@app.get("/api/resumen/horas", tags=["Reportes"])
+async def ventas_por_hora(desde: str, hasta: str, _: Admin):
+    return tienda.ventas_por_hora(desde, hasta)
+
+
+@app.get("/api/hoy", tags=["Reportes"])
+async def fecha_de_hoy(_: Actual):
+    """La fecha de hoy en Ecuador, para que la app no dependa del reloj del celular."""
+    return {"hoy": hoy()}
 
 
 @app.get("/api/stock-bajo", tags=["Reportes"])

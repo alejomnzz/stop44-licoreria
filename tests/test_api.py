@@ -131,3 +131,16 @@ def test_historial_de_stock(cliente):
     historial = cliente.get(f"/api/productos/{p['id']}/movimientos").json()
     assert [m["tipo"] for m in historial] == ["venta", "entrada", "inicial"]
     assert historial[0]["stock_final"] == 14 and historial[0]["usuario"] == "Dueña"
+
+
+def test_muchos_pedidos_al_mismo_tiempo(cliente):
+    """La app pide varias cosas a la vez (por ejemplo el Resumen); ninguna debe fallar."""
+    from concurrent.futures import ThreadPoolExecutor
+    crear_admin(cliente)
+    p = crear_producto(cliente)
+    cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 1}], "metodo": "Deuna"})
+    rutas = ["/api/productos", "/api/resumen", "/api/ventas", "/api/stock-bajo", "/api/inventario/valor",
+             "/api/auth/yo", "/api/usuarios", "/api/hoy"] * 6
+    with ThreadPoolExecutor(max_workers=12) as hilos:
+        estados = list(hilos.map(lambda r: cliente.get(r).status_code, rutas))
+    assert estados == [200] * len(rutas)

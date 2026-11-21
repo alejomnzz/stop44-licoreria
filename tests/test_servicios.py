@@ -142,3 +142,10 @@ def test_fecha_en_hora_de_ecuador(tienda):
     v = tienda.registrar_venta({agua.id: 1}, "Deuna")
     assert v.fecha == ecuador.date().isoformat()
     assert abs(int(v.hora[:2]) - ecuador.hour) in (0, 1, 23)
+
+
+def test_ventas_por_hora(tienda):
+    agua = tienda.productos("aguardiente")[0]
+    v = tienda.registrar_venta({agua.id: 2}, "Efectivo")
+    horas = tienda.ventas_por_hora(v.fecha, v.fecha)
+    assert len(horas) == 24 and horas[int(v.hora[:2])] == 2500

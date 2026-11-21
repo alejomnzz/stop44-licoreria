@@ -79,8 +79,13 @@ def leer_token(token: str, clave_firma: str) -> int | None:
 
 # ------------------------------------------------------------------- cuentas
 class Cuentas:
-    def __init__(self, con: sqlite3.Connection):
-        self.con = con
+    def __init__(self, fuente):
+        """fuente: una BaseDeDatos (servidor) o una conexión directa (pruebas)."""
+        self._fuente = fuente
+
+    @property
+    def con(self) -> sqlite3.Connection:
+        return getattr(self._fuente, "con", self._fuente)
 
     @staticmethod
     def _usuario(f: sqlite3.Row) -> Usuario:

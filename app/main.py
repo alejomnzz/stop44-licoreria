@@ -8,6 +8,8 @@ Importante: todo el dinero viaja en CENTAVOS de dólar. $12,50 = 1250.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import os
 import time
 from dataclasses import asdict
@@ -15,7 +17,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -135,6 +137,11 @@ class ProductoEntrada(BaseModel):
     costo: int = Field(0, ge=0)
     stock: int = Field(0, ge=0)
     minimo: int = Field(5, ge=0)
+
+
+class FotoEntrada(BaseModel):
+    """La foto ya achicada por la app, en base64 (puede venir como data:image/jpeg;base64,...)"""
+    imagen: str
 
 
 class Entrada(BaseModel):
@@ -257,6 +264,39 @@ async def entrada_mercancia(producto_id: int, datos: Entrada, u: Admin):
     """Llegada de mercancía (suma) o conteo físico (fijar=true)."""
     p = tienda.entrada(producto_id, datos.cantidad, datos.costo, datos.fijar, u.id)
     return producto_json(p, True)
+
+
+@app.put("/api/productos/{producto_id}/foto", tags=["Productos"])
+async def subir_foto(producto_id: int, datos: FotoEntrada, _: Admin):
+    texto = datos.imagen.split(",", 1)[-1]          # quita el "data:image/jpeg;base64,"
+    try:
+        imagen = base64.b64decode(texto, validate=True)
+    except (binascii.Error, ValueError):
+        raise HTTPException(400, "La foto llegó dañada. Intenta de nuevo.") from None
+    tienda.guardar_foto(producto_id, imagen)
+    return producto_json(tienda.producto(producto_id), True)
+
+
+@app.delete("/api/productos/{producto_id}/foto", tags=["Productos"])
+async def quitar_foto(producto_id: int, _: Admin):
+    tienda.quitar_foto(producto_id)
+    return {"ok": True}
+
+
+@app.get("/api/productos/{producto_id}/foto", tags=["Productos"])
+async def ver_foto(producto_id: int, _: Actual):
+    foto = tienda.foto(producto_id)
+    if foto is None:
+        raise HTTPException(404, "Ese producto no tiene foto.")
+    imagen, tipo = foto
+    # la dirección lleva ?v=<versión>, así que el navegador la puede guardar mucho tiempo
+    return Response(imagen, media_type=tipo, headers={"Cache-Control": "private, max-age=31536000, immutable"})
+
+
+@app.get("/api/productos/{producto_id}/movimientos", tags=["Productos"])
+async def movimientos(producto_id: int, _: Admin):
+    """Historial de cambios de stock (kardex) del producto."""
+    return tienda.movimientos(producto_id)
 
 
 @app.get("/api/inventario/valor", tags=["Productos"])

@@ -18,7 +18,7 @@ from app.main import app, tienda  # noqa: E402
 
 @pytest.fixture
 def cliente():
-    for tabla in ("movimientos", "venta_items", "ventas", "productos", "usuarios"):
+    for tabla in ("movimientos", "fotos", "venta_items", "ventas", "productos", "usuarios"):
         tienda.con.execute(f"DELETE FROM {tabla}")
     tienda.con.commit()
     return TestClient(app)
@@ -96,3 +96,38 @@ def test_salir_cierra_la_sesion(cliente):
     crear_admin(cliente)
     cliente.post("/api/auth/salir")
     assert cliente.get("/api/auth/yo").status_code == 401
+
+
+# PNG de 1x1 píxel, para probar las fotos
+PNG = ("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
+
+
+def test_fotos_de_productos(cliente):
+    crear_admin(cliente)
+    p = crear_producto(cliente)
+    assert p["foto"] is None
+    r = cliente.put(f"/api/productos/{p['id']}/foto", json={"imagen": "data:image/png;base64," + PNG})
+    assert r.status_code == 200 and r.json()["foto"]
+    r = cliente.get(f"/api/productos/{p['id']}/foto")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+
+    # editar el producto no borra la foto
+    r = cliente.put(f"/api/productos/{p['id']}", json={"nombre": "Otro nombre", "precio": 1300})
+    assert r.json()["foto"]
+
+    # un archivo que no es imagen se rechaza
+    r = cliente.put(f"/api/productos/{p['id']}/foto", json={"imagen": "aG9sYSBtdW5kbw=="})
+    assert r.status_code == 400 and "no es una foto" in r.json()["detail"]
+
+    cliente.delete(f"/api/productos/{p['id']}/foto")
+    assert cliente.get(f"/api/productos/{p['id']}/foto").status_code == 404
+
+
+def test_historial_de_stock(cliente):
+    crear_admin(cliente)
+    p = crear_producto(cliente)
+    cliente.post(f"/api/productos/{p['id']}/entrada", json={"cantidad": 6})
+    cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 2}], "metodo": "Deuna"})
+    historial = cliente.get(f"/api/productos/{p['id']}/movimientos").json()
+    assert [m["tipo"] for m in historial] == ["venta", "entrada", "inicial"]
+    assert historial[0]["stock_final"] == 14 and historial[0]["usuario"] == "Dueña"

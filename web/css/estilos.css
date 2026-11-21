@@ -351,3 +351,72 @@ body.sin-sesion .cabecera, body.sin-sesion .nav { display: none; }
   .barra-carrito { display: none !important; }
   .carrito { position: sticky; top: 140px; }
 }
+
+/* foto real del producto dentro de la tarjeta */
+.dibujo img { width: 100%; height: 100%; object-fit: contain; }
+
+/* ---------- Inventario ---------- */
+.encabezado { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cifras { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.cifra { background: var(--negro); color: var(--blanco); border-radius: 12px; padding: 12px 14px; text-align: left; border: 0; font: inherit; }
+.cifra small { display: block; color: #bdbdbd; font-size: 13px; margin-bottom: 2px; }
+.cifra b { font-family: var(--letra-titulo); font-weight: 400; font-size: 24px; }
+.cifra .precio { color: #ff6b74; -webkit-text-stroke: 0; }
+button.cifra { cursor: pointer; }
+.cifra.alerta { background: var(--rojo); }
+.cifra.alerta small { color: #ffd6d9; }
+.lista-inventario { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.fila-producto {
+  display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 6px 14px; align-items: center;
+  background: var(--blanco); border: var(--borde); border-radius: 14px; box-shadow: var(--sombra); padding: 10px 12px;
+}
+.fila-foto { grid-row: span 2; width: 72px; height: 72px; padding: 4px; background: var(--blanco); border: 2px solid var(--negro); border-radius: 10px; cursor: pointer; }
+.fila-foto svg, .fila-foto img { width: 100%; height: 100%; object-fit: contain; }
+.fila-datos { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.fila-datos b { font-size: 16px; font-weight: 800; }
+.fila-datos .tenue { font-size: 13px; }
+.fila-precios { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.fila-precios .precio { font-size: 19px; }
+.fila-stock { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stock-numero { font-size: 18px; padding: 4px 10px; font-family: var(--letra-titulo); font-weight: 400; min-width: 44px; text-align: center; }
+.fila-acciones { grid-column: 2 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+@media (min-width: 760px) {
+  .fila-producto { grid-template-columns: 72px minmax(0, 1fr) 90px auto; }
+  .fila-foto { grid-row: auto; }
+  .fila-acciones { grid-column: auto; }
+}
+
+/* formulario de producto */
+.form-producto { display: flex; flex-direction: column; gap: 12px; }
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.foto-campo { display: flex; gap: 14px; align-items: center; }
+.foto-vista { width: 110px; height: 110px; flex: none; padding: 6px; border: var(--borde); border-radius: 14px; box-shadow: var(--sombra); background: var(--blanco); }
+.foto-vista svg, .foto-vista img { width: 100%; height: 100%; object-fit: contain; }
+.foto-vista.entra { animation: golpe 0.45s var(--rebote); }
+.foto-botones { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.foto-botones small { font-size: 12px; }
+.margen { min-height: 1.3em; margin: -4px 0 0; font-size: 15px; }
+.margen b { color: var(--verde); }
+.falta { color: var(--rojo); font-weight: 700; }
+.error-claro { color: var(--rojo); margin: 0; }
+.acciones .espacio { flex: 1; }
+.eliminar { color: var(--rojo); }
+
+/* entrada de mercancía */
+.entrada-cabeza { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.entrada-cabeza .dibujo { width: 60px; height: 60px; flex: none; }
+.contador { display: grid; grid-template-columns: 56px 1fr 56px; gap: 10px; margin: 10px 0; }
+.contador .btn { font-size: 26px; padding: 6px; }
+.contador .entrada { text-align: center; font-family: var(--letra-titulo); font-size: 30px; padding: 8px; }
+.paquetes { display: flex; gap: 8px; margin-bottom: 12px; }
+.paquetes[hidden] { display: none; }
+.resultado { font-size: 18px; min-height: 1.4em; margin: 10px 0 0; }
+.resultado b { font-family: var(--letra-titulo); font-weight: 400; font-size: 24px; }
+.sube { color: var(--verde); font-weight: 800; }
+.baja { color: var(--rojo); font-weight: 800; }
+
+/* historial */
+.historial { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; }
+.historial li { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 2px dashed #ddd; font-size: 14px; }
+.historial small { display: block; font-size: 12px; }
+.mov { font-family: var(--letra-titulo); font-size: 20px; text-align: center; }

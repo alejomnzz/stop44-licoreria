@@ -59,6 +59,14 @@ CREATE TABLE IF NOT EXISTS venta_items (
 );
 CREATE INDEX IF NOT EXISTS idx_items_venta ON venta_items(venta_id);
 
+-- Fotos de los productos (en la misma base de datos, así un solo archivo guarda todo)
+CREATE TABLE IF NOT EXISTS fotos (
+    producto_id INTEGER PRIMARY KEY REFERENCES productos(id),
+    imagen      BLOB    NOT NULL,                      -- la imagen ya achicada (JPEG, PNG o WEBP)
+    tipo        TEXT    NOT NULL,                      -- image/jpeg, image/png, image/webp
+    version     TEXT    NOT NULL                       -- cambia cada vez que se sube una foto nueva
+);
+
 -- Kardex: cada cambio de stock queda registrado
 CREATE TABLE IF NOT EXISTS movimientos (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,

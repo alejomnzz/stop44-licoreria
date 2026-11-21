@@ -42,6 +42,7 @@ class Producto:
     costo: int = 0
     stock: int = 0
     minimo: int = 5
+    foto: str | None = None            # versión de la foto, o None si no tiene
     id: int | None = None
 
     @property

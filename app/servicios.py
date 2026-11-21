@@ -6,6 +6,7 @@ así que todo se puede probar con pytest.
 
 from __future__ import annotations
 
+import secrets
 import sqlite3
 from collections import defaultdict
 from datetime import datetime
@@ -24,6 +25,20 @@ class StockInsuficiente(ErrorTienda):
     pass
 
 
+FOTO_MAX_BYTES = 600 * 1024            # la app las achica antes, esto es solo un tope
+_FIRMAS_IMAGEN = {b"\xff\xd8\xff": "image/jpeg", b"\x89PNG\r\n\x1a\n": "image/png"}
+
+
+def tipo_de_imagen(datos: bytes) -> str | None:
+    """Reconoce la imagen por sus primeros bytes (no confía en el nombre del archivo)."""
+    for firma, tipo in _FIRMAS_IMAGEN.items():
+        if datos.startswith(firma):
+            return tipo
+    if datos[:4] == b"RIFF" and datos[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
 class Tienda:
     def __init__(self, ruta: str | Path | None = None):
         self.con = db.conectar(ruta)
@@ -38,8 +53,11 @@ class Tienda:
             id=fila["id"], nombre=fila["nombre"], categoria=fila["categoria"],
             presentacion=fila["presentacion"], codigo=fila["codigo"],
             costo=fila["costo"], precio=fila["precio"], stock=fila["stock"],
-            minimo=fila["minimo"],
+            minimo=fila["minimo"], foto=fila["foto"],
         )
+
+    _SELECT_PRODUCTO = ("SELECT p.*, f.version AS foto FROM productos p"
+                        " LEFT JOIN fotos f ON f.producto_id = p.id WHERE p.activo = 1")
 
     def _movimiento(self, producto_id: int, tipo: str, cantidad: int,
                     stock_final: int, nota: str = "", usuario_id: int | None = None) -> None:
@@ -53,7 +71,7 @@ class Tienda:
     # ------------------------------------------------------------ productos
     def productos(self, buscar: str = "", categoria: str | None = None,
                   solo_bajo: bool = False) -> list[Producto]:
-        filas = self.con.execute("SELECT * FROM productos WHERE activo = 1").fetchall()
+        filas = self.con.execute(self._SELECT_PRODUCTO).fetchall()
         lista = [self._producto(f) for f in filas]
         q = normalizar(buscar.strip())
         if q:
@@ -67,12 +85,12 @@ class Tienda:
 
     def producto(self, producto_id: int) -> Producto | None:
         f = self.con.execute(
-            "SELECT * FROM productos WHERE id = ? AND activo = 1", (producto_id,)).fetchone()
+            self._SELECT_PRODUCTO + " AND p.id = ?", (producto_id,)).fetchone()
         return self._producto(f) if f else None
 
     def por_codigo(self, codigo: str) -> Producto | None:
         f = self.con.execute(
-            "SELECT * FROM productos WHERE codigo = ? AND activo = 1", (codigo.strip(),)).fetchone()
+            self._SELECT_PRODUCTO + " AND p.codigo = ?", (codigo.strip(),)).fetchone()
         return self._producto(f) if f else None
 
     def guardar_producto(self, p: Producto, usuario_id: int | None = None) -> Producto:
@@ -113,13 +131,14 @@ class Tienda:
                 if p.stock != anterior.stock:
                     self._movimiento(p.id, "ajuste", p.stock - anterior.stock, p.stock,
                                      "Editado desde el formulario", usuario_id)
-        return p
+        return self.producto(p.id)
 
     def eliminar_producto(self, producto_id: int) -> None:
         """Lo oculta (no se borra para no dañar el historial de ventas)."""
         with self.con:
             self.con.execute(
                 "UPDATE productos SET activo = 0, codigo = NULL WHERE id = ?", (producto_id,))
+            self.con.execute("DELETE FROM fotos WHERE producto_id = ?", (producto_id,))
 
     def entrada(self, producto_id: int, cantidad: int, costo: int | None = None,
                 fijar: bool = False, usuario_id: int | None = None) -> Producto:
@@ -137,6 +156,42 @@ class Tienda:
             self._movimiento(p.id, "ajuste" if fijar else "entrada", nuevo - p.stock, nuevo,
                              "Conteo físico" if fijar else "Llegada de mercancía", usuario_id)
         return self.producto(p.id)
+
+    # ---------------------------------------------------------------- fotos
+    def guardar_foto(self, producto_id: int, datos: bytes) -> str:
+        """Guarda (o reemplaza) la foto del producto. Devuelve la versión nueva."""
+        if self.producto(producto_id) is None:
+            raise ErrorTienda("El producto no existe.")
+        if len(datos) > FOTO_MAX_BYTES:
+            raise ErrorTienda("La foto es muy pesada. Prueba con otra.")
+        tipo = tipo_de_imagen(datos)
+        if tipo is None:
+            raise ErrorTienda("Ese archivo no es una foto (usa JPG, PNG o WEBP).")
+        version = secrets.token_hex(4)
+        with self.con:
+            self.con.execute(
+                "INSERT INTO fotos (producto_id, imagen, tipo, version) VALUES (?, ?, ?, ?)"
+                " ON CONFLICT(producto_id) DO UPDATE SET imagen = excluded.imagen,"
+                " tipo = excluded.tipo, version = excluded.version",
+                (producto_id, datos, tipo, version))
+        return version
+
+    def foto(self, producto_id: int) -> tuple[bytes, str] | None:
+        f = self.con.execute(
+            "SELECT imagen, tipo FROM fotos WHERE producto_id = ?", (producto_id,)).fetchone()
+        return (f["imagen"], f["tipo"]) if f else None
+
+    def quitar_foto(self, producto_id: int) -> None:
+        with self.con:
+            self.con.execute("DELETE FROM fotos WHERE producto_id = ?", (producto_id,))
+
+    def movimientos(self, producto_id: int, limite: int = 50) -> list[dict]:
+        """Historial de cambios de stock de un producto (kardex), del más nuevo al más viejo."""
+        filas = self.con.execute(
+            "SELECT m.fecha, m.tipo, m.cantidad, m.stock_final, m.nota, COALESCE(u.nombre, '') AS usuario"
+            " FROM movimientos m LEFT JOIN usuarios u ON u.id = m.usuario_id"
+            " WHERE m.producto_id = ? ORDER BY m.id DESC LIMIT ?", (producto_id, limite))
+        return [dict(f) for f in filas]
 
     def valor_inventario(self) -> tuple[int, int, int]:
         """(unidades, valor a costo, valor a precio de venta)."""

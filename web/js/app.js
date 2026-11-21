@@ -6,6 +6,7 @@ import { $, esc, dinero, avisar, confirmar, celebrar, cargando } from "./ui.js";
 import { dibujoProducto } from "./dibujos.js";
 import { mostrarAcceso } from "./acceso.js";
 import { mostrarVender } from "./vender.js";
+import { mostrarInventario } from "./inventario.js";
 
 // ---------- Íconos (trazos simples, heredan el color) ----------
 const ICONO = {
@@ -31,7 +32,7 @@ const enConstruccion = (titulo, paso) => (el) => {
 
 export const PANTALLAS = {
   vender:     { nombre: "Vender",     soloAdmin: false, mostrar: mostrarVender },
-  inventario: { nombre: "Inventario", soloAdmin: true,  mostrar: enConstruccion("Inventario", 9) },
+  inventario: { nombre: "Inventario", soloAdmin: true,  mostrar: mostrarInventario },
   ventas:     { nombre: "Ventas",     soloAdmin: false, mostrar: enConstruccion("Ventas del día", 10) },
   resumen:    { nombre: "Resumen",    soloAdmin: true,  mostrar: enConstruccion("Resumen", 11) },
   usuarios:   { nombre: "Usuarios",   soloAdmin: true,  mostrar: enConstruccion("Usuarios", 11) },

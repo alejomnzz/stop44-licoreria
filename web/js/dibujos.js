@@ -59,3 +59,11 @@ export function dibujoProducto(categoria) {
   const forma = FORMAS[categoria] || FORMAS.Otros;
   return `<svg viewBox="0 0 60 80" aria-hidden="true">${forma(c, t)}</svg>`;
 }
+
+// Foto real si el producto tiene, o el dibujo de su categoría si no
+export function imagenProducto(p) {
+  if (p.foto) {
+    return `<img src="/api/productos/${p.id}/foto?v=${p.foto}" alt="" loading="lazy" decoding="async">`;
+  }
+  return dibujoProducto(p.categoria);
+}

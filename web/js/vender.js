@@ -4,7 +4,7 @@
 
 import { api } from "./api.js";
 import { $, esc, dinero, aCentavos, avisar, celebrar, cargando } from "./ui.js";
-import { dibujoProducto } from "./dibujos.js";
+import { imagenProducto } from "./dibujos.js";
 
 const BILLETES = [500, 1000, 2000, 5000];    // $5, $10, $20, $50 en centavos
 const ICONO_EFECTIVO = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>';
@@ -98,7 +98,7 @@ function pintarProductos() {
               aria-label="${esc(p.nombre_completo)}, ${dinero(p.precio)}, quedan ${p.stock}">
         <span class="producto-stock">${etiqueta}</span>
         ${enCarrito ? `<span class="producto-cuenta">${enCarrito}</span>` : ""}
-        <span class="dibujo">${dibujoProducto(p.categoria)}</span>
+        <span class="dibujo">${imagenProducto(p)}</span>
         <b>${esc(p.nombre)}</b>
         <span class="tenue">${esc(p.presentacion)}</span>
         <span class="precio">${dinero(p.precio)}</span>

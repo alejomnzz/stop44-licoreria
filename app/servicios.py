@@ -340,6 +340,16 @@ class Tienda:
             " WHERE anulada = 0 AND fecha BETWEEN ? AND ? GROUP BY 1", (desde, hasta))}
         return {h: datos.get(h, 0) for h in range(24)}
 
+    def respaldo(self) -> bytes:
+        """Copia completa de la base de datos (ventas, productos, fotos, usuarios) en un archivo."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as carpeta:
+            ruta = Path(carpeta) / "copia.db"
+            destino = sqlite3.connect(ruta)
+            self.con.backup(destino)        # copia segura aunque la app esté en uso
+            destino.close()
+            return ruta.read_bytes()
+
     def texto_cierre(self, fecha: str) -> str:
         """Resumen del día listo para pegar en WhatsApp."""
         r = self.resumen(fecha)

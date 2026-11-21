@@ -19,6 +19,7 @@ from pathlib import Path
 import bcrypt
 import jwt
 
+from .db import ruta_por_defecto
 from .modelos import ROLES, Usuario
 from .utils import ahora
 
@@ -56,7 +57,7 @@ def secreto() -> str:
     """Clave para firmar las sesiones: variable STOP44_SECRET o un archivo local."""
     if os.getenv("STOP44_SECRET"):
         return os.environ["STOP44_SECRET"]
-    archivo = Path(os.getenv("STOP44_DB", "datos/stop44.db")).parent / ".secreto"
+    archivo = ruta_por_defecto().parent / ".secreto"     # junto a la base de datos (en Railway, en el volumen)
     if not archivo.exists():
         archivo.parent.mkdir(parents=True, exist_ok=True)
         archivo.write_text(secrets.token_hex(32))

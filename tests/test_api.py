@@ -144,3 +144,16 @@ def test_muchos_pedidos_al_mismo_tiempo(cliente):
     with ThreadPoolExecutor(max_workers=12) as hilos:
         estados = list(hilos.map(lambda r: cliente.get(r).status_code, rutas))
     assert estados == [200] * len(rutas)
+
+
+def test_salud_y_respaldo(cliente):
+    assert cliente.get("/api/salud").json() == {"ok": True}
+    assert cliente.get("/api/respaldo").status_code == 401           # sin sesión no
+    crear_admin(cliente)
+    crear_producto(cliente)
+    r = cliente.get("/api/respaldo")
+    assert r.status_code == 200 and r.content.startswith(b"SQLite format 3")
+    import sqlite3, tempfile, pathlib
+    ruta = pathlib.Path(tempfile.mkdtemp()) / "copia.db"
+    ruta.write_bytes(r.content)
+    assert sqlite3.connect(ruta).execute("SELECT nombre FROM productos").fetchone()[0] == "Aguardiente Norteño"

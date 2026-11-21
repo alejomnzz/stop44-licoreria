@@ -550,3 +550,5 @@ button.cifra { cursor: pointer; }
 .instalar { border-color: var(--blanco); background: var(--rojo); color: var(--blanco); box-shadow: 0 3px 0 var(--rojo-oscuro); }
 .instalar[hidden] { display: none; }
 @media (display-mode: standalone) { .instalar { display: none; } }
+.respaldo { margin-top: 18px; }
+.respaldo p { margin: 0 0 12px; line-height: 1.5; font-size: 14px; }

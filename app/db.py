@@ -84,8 +84,15 @@ CREATE TABLE IF NOT EXISTS movimientos (
 
 
 def ruta_por_defecto() -> Path:
-    """La ruta se puede cambiar con la variable de entorno STOP44_DB."""
-    ruta = Path(os.getenv("STOP44_DB", "datos/stop44.db"))
+    """Dónde se guarda la base de datos.
+
+    1. STOP44_DB, si está definida.
+    2. En Railway, dentro del volumen (el disco que no se borra), que Railway
+       anuncia con la variable RAILWAY_VOLUME_MOUNT_PATH.
+    3. En el PC, en la carpeta datos/.
+    """
+    volumen = os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    ruta = Path(os.getenv("STOP44_DB") or (Path(volumen) / "stop44.db" if volumen else "datos/stop44.db"))
     ruta.parent.mkdir(parents=True, exist_ok=True)
     return ruta
 

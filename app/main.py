@@ -159,6 +159,22 @@ class NuevaVenta(BaseModel):
     recibido: int | None = None
 
 
+# ---------------------------------------------------------------- servidor
+@app.get("/api/salud", include_in_schema=False)
+async def salud():
+    """Render consulta esto para saber si la app está viva."""
+    tienda.con.execute("SELECT 1")
+    return {"ok": True}
+
+
+@app.get("/api/respaldo", tags=["Reportes"])
+async def descargar_respaldo(_: Admin):
+    """Descarga una copia de toda la base de datos (para guardar en el PC o en Drive)."""
+    nombre = f"stop44-respaldo-{hoy()}.db"
+    return Response(tienda.respaldo(), media_type="application/octet-stream",
+                    headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
 # -------------------------------------------------------------------- cuentas
 @app.get("/api/auth/estado", tags=["Cuentas"])
 async def estado():

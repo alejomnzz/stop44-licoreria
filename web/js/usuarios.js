@@ -61,6 +61,12 @@ export async function mostrarUsuarios(el, usuario) {
     </div>
 
     <p class="tenue ayuda-usuarios">Para que alguien nuevo use la app, pídele que entre al enlace y toque <b>Crear una</b>. Su cuenta aparecerá aquí para que la apruebes.</p>
+
+    <section class="sticker respaldo">
+      <h2 class="subtitulo">Copia de seguridad</h2>
+      <p class="tenue">Descarga un archivo con todo: productos, fotos, ventas y usuarios. Guárdalo en el computador o en Google Drive de vez en cuando, por ejemplo cada semana.</p>
+      <a class="btn" href="/api/respaldo" download>Descargar copia</a>
+    </section>
   </div>`;
 
   const nombre = (id) => lista.find((u) => u.id === id)?.nombre;

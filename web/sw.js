@@ -2,7 +2,7 @@
 // rápido y siga mostrándose aunque el internet falle un momento.
 // Las ventas y el inventario SIEMPRE se piden al servidor (nunca se guardan aquí).
 
-const VERSION = "stop44-v3";
+const VERSION = "stop44-v4";
 const ARCHIVOS = [
   "/", "/css/estilos.css", "/manifest.json",
   "/js/app.js", "/js/api.js", "/js/ui.js", "/js/dibujos.js", "/js/acceso.js",

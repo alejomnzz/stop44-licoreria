@@ -300,8 +300,64 @@ async function cobrar() {
   }
 }
 
+// ---------- Lector de código de barras ----------
+// El lector escribe como un teclado, pero mucho más rápido que una persona
+// (unos milisegundos entre tecla y tecla) y termina con Enter. Escuchamos todo
+// el teclado mientras esté abierta esta pantalla: si llega una ráfaga así, es un
+// código, sin importar dónde esté el cursor. Lo que el lector alcanzó a escribir
+// en otro campo (por ejemplo "Recibido") se borra, así no se cobra por error.
+const LECTOR = { minimo: 6, pausa: 60, promedio: 35 };
+let rafaga = null;            // { texto, inicio, ultima, campo, valorAntes }
+let lectorListo = false;
+
+function pantallaActiva() {
+  return raiz?.isConnected && raiz.querySelector(".pantalla-vender") && !document.querySelector(".fondo-modal");
+}
+
+function venderPorCodigo(codigo) {
+  const p = estado.productos.find((x) => x.codigo && x.codigo === codigo);
+  if (!p) {
+    avisar(`El código ${codigo} no está registrado. Agrégalo al producto en Inventario.`, "error");
+    return;
+  }
+  agregar(p.id, $(`.producto[data-id="${p.id}"]`, raiz));
+}
+
+function escucharLector() {
+  if (lectorListo) return;
+  lectorListo = true;
+  window.addEventListener("keydown", (e) => {
+    if (!pantallaActiva() || e.ctrlKey || e.altKey || e.metaKey) { rafaga = null; return; }
+    const ahora = performance.now();
+    if (e.key.length === 1) {
+      if (!rafaga || ahora - rafaga.ultima > LECTOR.pausa) {
+        const campo = e.target.matches?.("input, textarea") ? e.target : null;
+        rafaga = { texto: "", inicio: ahora, ultima: ahora, campo, valorAntes: campo ? campo.value : "" };
+      }
+      rafaga.texto += e.key;
+      rafaga.ultima = ahora;
+      return;
+    }
+    if (e.key !== "Enter" || !rafaga) return;
+    const { texto, inicio, ultima, campo, valorAntes } = rafaga;
+    rafaga = null;
+    const rapido = texto.length >= LECTOR.minimo && ahora - ultima < LECTOR.pausa &&
+      (ultima - inicio) / (texto.length - 1) < LECTOR.promedio;
+    if (!rapido) return;
+    // Es el lector: que nadie más reciba este Enter (ni un botón con foco, ni "Recibido")
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (campo && campo.value.endsWith(texto)) {
+      campo.value = valorAntes;
+      campo.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    venderPorCodigo(texto.trim());
+  }, true);
+}
+
 // ---------- Eventos ----------
 function conectarEventos() {
+  escucharLector();
   // los eventos van en el contenedor nuevo, así no se repiten al volver a pintar
   const caja = raiz.firstElementChild;
   const buscar = $("#buscar", raiz);
@@ -311,7 +367,7 @@ function conectarEventos() {
     e.preventDefault();
     const q = buscar.value.trim();
     if (!q) return;
-    // Primero se busca como código de barras (así funcionan los lectores)
+    // Primero se busca como código de barras; si no, y solo queda un producto a la vista, ese
     let p = estado.productos.find((x) => x.codigo && x.codigo === q);
     if (!p) {
       const visibles = [...$("#productos", raiz).querySelectorAll(".producto:not(.agotado)")];

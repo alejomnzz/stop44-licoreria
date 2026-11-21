@@ -20,7 +20,9 @@ App para la licorería **Stop 44** (Ecuador): vender, controlar el inventario, v
 | **Usuarios** | Administrador | Aprobar cuentas, roles, contraseñas y copia de seguridad |
 
 **Lector de código de barras:** los lectores USB o Bluetooth funcionan como un teclado (escriben el
-número y presionan Enter). En **Vender** se escanea en el buscador; en el formulario del producto, el
+número y presionan Enter). En **Vender** se puede escanear sin importar dónde esté el cursor: la app
+reconoce la ráfaga rápida del lector y agrega la botella (si cayó en otro campo, como "Recibido", lo
+borra para no cobrar por error). En el formulario del producto, el
 Enter del lector no guarda: pasa al campo que falta, y avisa si el código ya es de otro producto.
 
 Detalles técnicos que vale la pena saber:

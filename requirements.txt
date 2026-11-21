@@ -4,4 +4,6 @@ bcrypt>=4.1
 PyJWT>=2.8
 pytest>=8.0
 httpx>=0.27
+openpyxl>=3.1          # solo para las pruebas: abre el Excel y revisa los números
 tzdata>=2024.1
+XlsxWriter>=3.2

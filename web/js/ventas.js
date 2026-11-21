@@ -43,7 +43,10 @@ export async function mostrarVentas(el, usuario) {
   el.innerHTML = `<div class="pantalla-ventas">
     <div class="encabezado">
       <h1 class="titulo">${admin ? "Ventas" : "Mis ventas"}</h1>
-      ${admin && validas.length ? '<button class="btn btn-rojo" id="cierre">Cierre del día</button>' : ""}
+      ${admin ? `<div class="botones-encabezado">
+        <a class="btn" href="/api/reporte" download><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg> Excel</a>
+        ${validas.length ? '<button class="btn btn-rojo" id="cierre">Cierre del día</button>' : ""}
+      </div>` : ""}
     </div>
 
     <div class="selector-dia">

@@ -57,7 +57,10 @@ export async function mostrarResumen(el) {
   const maxProducto = Math.max(1, ...masVendidos.map((p) => p.total));
 
   el.innerHTML = `<div class="pantalla-resumen">
-    <h1 class="titulo">Resumen</h1>
+    <div class="encabezado">
+      <h1 class="titulo">Resumen</h1>
+      <a class="btn" href="/api/reporte" download><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 19h16"/></svg> Descargar Excel</a>
+    </div>
     <div class="categorias periodos" role="tablist">
       ${Object.entries(PERIODOS).map(([id, nombre]) => `<button class="chip ${id === periodo ? "activo" : ""}" data-periodo="${id}" role="tab" aria-selected="${id === periodo}">${nombre}</button>`).join("")}
     </div>

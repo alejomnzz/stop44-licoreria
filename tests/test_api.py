@@ -157,3 +157,25 @@ def test_salud_y_respaldo(cliente):
     ruta = pathlib.Path(tempfile.mkdtemp()) / "copia.db"
     ruta.write_bytes(r.content)
     assert sqlite3.connect(ruta).execute("SELECT nombre FROM productos").fetchone()[0] == "Aguardiente Norteño"
+
+
+def test_reporte_excel(cliente):
+    import io
+    import openpyxl
+    assert cliente.get("/api/reporte").status_code == 401
+    crear_admin(cliente)
+    p = crear_producto(cliente)
+    cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 2}], "metodo": "Efectivo"})
+    cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 1}], "metodo": "Deuna"})
+    v = cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 3}], "metodo": "Deuna"}).json()
+    cliente.post(f"/api/ventas/{v['id']}/anular")
+    r = cliente.get("/api/reporte")
+    assert r.status_code == 200 and "spreadsheetml" in r.headers["content-type"]
+    libro = openpyxl.load_workbook(io.BytesIO(r.content), data_only=True)   # valores ya calculados
+    assert libro.sheetnames == ["Resumen", "Por día", "Por semana", "Por mes", "Productos", "Ventas", "Detalle", "Inventario"]
+    hoy = libro["Resumen"]
+    assert hoy["A9"].value == "Hoy" and hoy["B9"].value == 2            # la anulada no cuenta
+    assert hoy["C9"].value == 37.5                                      # 3 × $12,50
+    dia = libro["Por día"]
+    assert (dia["D2"].value, dia["E2"].value, dia["F2"].value) == (25.0, 12.5, 37.5)
+    assert libro["Ventas"].max_row == 4 and libro["Ventas"]["N4"].value == "Anulada"

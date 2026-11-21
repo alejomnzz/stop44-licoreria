@@ -167,6 +167,16 @@ async def salud():
     return {"ok": True}
 
 
+@app.get("/api/reporte", tags=["Reportes"])
+async def reporte_excel(_: Admin):
+    """Excel con las ventas por día, semana y mes, productos e inventario (se genera al momento)."""
+    from .reporte import generar_excel
+    nombre = f"stop44-ventas-{hoy()}.xlsx"
+    return Response(generar_excel(tienda),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
 @app.get("/api/respaldo", tags=["Reportes"])
 async def descargar_respaldo(_: Admin):
     """Descarga una copia de toda la base de datos (para guardar en el PC o en Drive)."""

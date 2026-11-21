@@ -552,3 +552,4 @@ button.cifra { cursor: pointer; }
 @media (display-mode: standalone) { .instalar { display: none; } }
 .respaldo { margin-top: 18px; }
 .respaldo p { margin: 0 0 12px; line-height: 1.5; font-size: 14px; }
+.botones-encabezado { display: flex; gap: 10px; flex-wrap: wrap; }

@@ -63,9 +63,14 @@ export async function mostrarUsuarios(el, usuario) {
     <p class="tenue ayuda-usuarios">Para que alguien nuevo use la app, pídele que entre al enlace y toque <b>Crear una</b>. Su cuenta aparecerá aquí para que la apruebes.</p>
 
     <section class="sticker respaldo">
+      <h2 class="subtitulo">Reporte en Excel</h2>
+      <p class="tenue">Todas las ventas por día, semana y mes, lo más vendido y el inventario. Se arma en el momento, así que siempre sale al día.</p>
+      <a class="btn btn-rojo" href="/api/reporte" download>Descargar Excel</a>
+    </section>
+    <section class="sticker respaldo">
       <h2 class="subtitulo">Copia de seguridad</h2>
-      <p class="tenue">Descarga un archivo con todo: productos, fotos, ventas y usuarios. Guárdalo en el computador o en Google Drive de vez en cuando, por ejemplo cada semana.</p>
-      <a class="btn" href="/api/respaldo" download>Descargar copia</a>
+      <p class="tenue">Es un archivo <b>.db</b> con toda la base de datos (productos, fotos, ventas y usuarios). <b>No se abre como un documento</b>: sirve para recuperar todo si algún día pasa algo con el servidor. Guárdalo en Google Drive cada semana.</p>
+      <a class="btn" href="/api/respaldo" download>Descargar copia de seguridad</a>
     </section>
   </div>`;
 

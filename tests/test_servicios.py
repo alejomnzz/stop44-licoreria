@@ -224,3 +224,13 @@ def test_cierre_con_fiados_y_abonos(tienda):
     assert r.por_metodo == {"Fiado": 2500, "Efectivo": 1250} and r.abonos == {"Efectivo": 1000}
     texto = tienda.texto_cierre(hoy_ecuador())
     assert "Efectivo en caja: $22,50" in texto and "Fiados por cobrar (total): $15,00" in texto
+
+
+def test_codigo_de_barras_repetido_dice_de_quien_es(tienda):
+    assert tienda.por_codigo("7861").nombre == "Aguardiente Norteño"
+    with pytest.raises(ErrorTienda, match="ya es de Aguardiente Norteño 750 ml"):
+        tienda.guardar_producto(Producto("Ron Abuelo", 1800, "Ron", "750 ml", codigo=" 7861 "))
+    # al eliminar un producto su código queda libre para otro
+    tienda.eliminar_producto(tienda.por_codigo("7861").id)
+    nuevo = tienda.guardar_producto(Producto("Ron Abuelo", 1800, "Ron", "750 ml", codigo="7861"))
+    assert tienda.por_codigo("7861").id == nuevo.id

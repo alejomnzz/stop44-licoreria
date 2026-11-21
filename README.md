@@ -13,11 +13,15 @@ App para la licorería **Stop 44** (Ecuador): vender, controlar el inventario, v
 |---|---|---|
 | **Ingresar / Crear cuenta** | Todos | La primera cuenta es la del administrador; las siguientes esperan aprobación |
 | **Vender** | Todos | Buscar o escanear códigos de barras, carrito, cobro en efectivo (con vueltas), Deuna o **fiado** a un cliente |
-| **Inventario** | Administrador | Productos con foto, costo, precio y margen, entradas de mercancía, conteo físico, historial (kardex) |
+| **Inventario** | Administrador | Productos con foto, costo, precio y margen, entradas de mercancía, conteo físico, historial (kardex); escanear una botella en el buscador la abre o propone crearla |
 | **Ventas** | Todos (el vendedor solo ve las suyas) | Ventas de cualquier día, efectivo / Deuna / fiado, efectivo en caja (con abonos), anulaciones, cierre para WhatsApp y Excel |
 | **Fiados** | Todos | Clientes que deben, su cuenta, abonos (todo o una parte) y recordatorio por WhatsApp |
 | **Resumen** | Administrador | Ventas por día y por hora, comparación con el periodo anterior, más vendidos, lo que hay que pedir |
 | **Usuarios** | Administrador | Aprobar cuentas, roles, contraseñas y copia de seguridad |
+
+**Lector de código de barras:** los lectores USB o Bluetooth funcionan como un teclado (escriben el
+número y presionan Enter). En **Vender** se escanea en el buscador; en el formulario del producto, el
+Enter del lector no guarda: pasa al campo que falta, y avisa si el código ya es de otro producto.
 
 Detalles técnicos que vale la pena saber:
 - El **dinero se guarda en centavos** (enteros) para no tener errores de redondeo: `$12,50` = `1250`.

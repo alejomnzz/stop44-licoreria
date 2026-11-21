@@ -152,6 +152,7 @@ img { max-width: 100%; display: block; }
 }
 .panel-roto .campo input, .panel-roto .campo select { border-color: var(--blanco); }
 .campo input:focus, .campo select:focus, .entrada:focus { box-shadow: 0 0 0 3px var(--rojo); }
+.campo input.con-error { border-color: var(--rojo); box-shadow: 0 0 0 3px var(--rojo); }
 .campo .error { color: var(--rojo); font-weight: 600; font-size: 13px; min-height: 1em; }
 .panel-roto .campo .error { color: #ff8a92; }
 

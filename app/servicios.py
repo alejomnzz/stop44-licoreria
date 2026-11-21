@@ -110,10 +110,11 @@ class Tienda:
             raise ErrorTienda("Costo, stock y mínimo no pueden ser negativos.")
         if p.codigo:
             otro = self.con.execute(
-                "SELECT id FROM productos WHERE codigo = ? AND id IS NOT ?",
+                "SELECT nombre, presentacion FROM productos WHERE codigo = ? AND id IS NOT ?",
                 (p.codigo, p.id)).fetchone()
             if otro:
-                raise ErrorTienda("Ya hay otro producto con ese código de barras.")
+                nombre = f"{otro['nombre']} {otro['presentacion'] or ''}".strip()
+                raise ErrorTienda(f"Ese código de barras ya es de {nombre}.")
         with self.con:
             if p.id is None:
                 cur = self.con.execute(

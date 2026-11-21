@@ -95,8 +95,8 @@ function pintarLista() {
 }
 
 // ---------- Formulario de producto (nuevo o editar) ----------
-function formulario(id) {
-  const p = id ? producto(id) : { nombre: "", categoria: estado.categoria !== "Todo" ? estado.categoria : "Aguardiente", presentacion: "", codigo: "", costo: 0, precio: 0, stock: 0, minimo: 5, foto: null };
+function formulario(id, codigoNuevo = "") {
+  const p = id ? producto(id) : { nombre: "", categoria: estado.categoria !== "Todo" ? estado.categoria : "Aguardiente", presentacion: "", codigo: codigoNuevo, costo: 0, precio: 0, stock: 0, minimo: 5, foto: null };
   let fotoNueva = null;          // data URL de la foto elegida (ya achicada)
   let quitarFoto = false;
 
@@ -150,8 +150,29 @@ function formulario(id) {
   margen();
   m.addEventListener("input", (e) => {
     $("#f-error", m).textContent = "";
+    if (e.target.id === "f-codigo") e.target.classList.remove("con-error");
     if (e.target.matches("#f-costo, #f-precio")) margen();
   });
+  // El lector de códigos escribe el número y presiona Enter: ese Enter no debe
+  // guardar el formulario, solo revisar el código y pasar al campo que falta.
+  const campoCodigo = $("#f-codigo", m);
+  const revisarCodigo = () => {
+    const codigo = campoCodigo.value.trim();
+    const otro = codigo && estado.productos.find((x) => x.codigo === codigo && x.id !== id);
+    campoCodigo.classList.toggle("con-error", !!otro);
+    if (otro) $("#f-error", m).textContent = `Ese código de barras ya es de ${otro.nombre_completo}.`;
+    return !otro;
+  };
+  campoCodigo.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (!revisarCodigo()) { campoCodigo.select(); return; }
+    const falta = ["#f-nombre", "#f-precio"].map((s) => $(s, m)).find((c) => !c.value.trim());
+    if (falta) falta.focus();
+    else { campoCodigo.blur(); if (campoCodigo.value.trim()) avisar("Código listo"); }
+  });
+  campoCodigo.addEventListener("change", revisarCodigo);
+
   $("#f-categoria", m).addEventListener("change", () => {
     if (!fotoNueva && (!p.foto || quitarFoto)) $("#foto-vista", m).innerHTML = dibujoProducto(v("#f-categoria"));
   });
@@ -196,6 +217,7 @@ function formulario(id) {
     };
     if (!datos.nombre) { error.textContent = "Escribe el nombre del producto."; return; }
     if (datos.precio <= 0) { error.textContent = "Escribe el precio de venta."; return; }
+    if (!revisarCodigo()) return;
 
     const boton = $("#guardar", m);
     boton.disabled = true; boton.textContent = "Guardando…";
@@ -325,7 +347,24 @@ async function historial(id) {
 // ---------- Eventos ----------
 function conectar() {
   const caja = raiz.firstElementChild;
-  $("#buscar-inv", caja).addEventListener("input", (e) => { estado.buscar = e.target.value; pintarLista(); });
+  const buscador = $("#buscar-inv", caja);
+  buscador.addEventListener("input", (e) => { estado.buscar = e.target.value; pintarLista(); });
+  // Escanear una botella en el buscador abre ese producto; si el código no está
+  // registrado, ofrece crear el producto con el código ya puesto.
+  buscador.addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const q = buscador.value.trim();
+    if (!q) return;
+    const limpiar = () => { estado.buscar = ""; buscador.value = ""; pintarLista(); };
+    const p = estado.productos.find((x) => x.codigo === q);
+    if (p) { limpiar(); return formulario(p.id); }
+    if (/^\d{6,}$/.test(q)) {
+      const crear = await confirmar("Código nuevo", `El código ${q} no está en el inventario. ¿Quieres crear el producto?`, "Crear producto");
+      limpiar();
+      if (crear) formulario(null, q);
+    }
+  });
   caja.addEventListener("click", (e) => {
     if (e.target.closest("#nuevo, [data-nuevo]")) return formulario(null);
     if (e.target.closest("#ver-pedir, [data-pedir]")) { estado.soloPedir = !estado.soloPedir || !!e.target.closest("#ver-pedir"); pintarFiltros(); pintarLista(); return; }

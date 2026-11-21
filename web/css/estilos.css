@@ -1,0 +1,227 @@
+/* =========================================================
+   Stop 44 — estilo "Muro"
+   Sacado del logo: muro de ladrillo, hueco negro con bordes
+   rotos, letras rojas tipo universitario y la mano de "pare".
+   ========================================================= */
+
+/* ---------- Colores, letras y medidas ---------- */
+:root {
+  --rojo: #d21f2b;
+  --rojo-oscuro: #9e1420;
+  --rojo-suave: #fde3e4;
+  --negro: #000;
+  --blanco: #fff;
+  --muro: #d6d6d1;
+  --junta: #b3b3ad;
+  --gris: #6d6d68;
+  --gris-claro: #ecebe7;
+  --verde: #1f7a45;
+  --ambar: #b86e00;
+
+  --letra-titulo: "Graduate", "Rockwell", Georgia, serif;
+  --letra: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --borde: 3px solid var(--negro);
+  --sombra: 4px 4px 0 var(--negro);
+  --radio: 12px;
+  --rapido: 0.12s;
+  --rebote: cubic-bezier(0.3, 1.6, 0.5, 1);
+
+  /* bordes rotos, como el hueco del logo */
+  --roto-abajo: polygon(0 0, 100% 0, 100% 86%, 88% 100%, 74% 90%, 58% 100%, 40% 91%, 24% 100%, 10% 92%, 0 100%);
+  --roto-arriba: polygon(0 18%, 9% 6%, 20% 15%, 33% 2%, 47% 13%, 60% 0, 74% 12%, 87% 3%, 100% 14%, 100% 100%, 0 100%);
+  --roto-todo: polygon(0 5%, 8% 0, 22% 4%, 37% 0, 55% 3%, 70% 0, 86% 4%, 100% 1%, 100% 95%, 90% 100%, 72% 96%, 50% 100%, 30% 96%, 12% 100%, 0 96%);
+  --octagono: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+
+* { box-sizing: border-box; margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--letra);
+  color: #111;
+  min-height: 100dvh;
+  background: var(--muro) url("../img/ladrillos.svg");
+  -webkit-tap-highlight-color: transparent;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 3px solid var(--rojo); outline-offset: 2px; }
+
+/* ---------- Estructura ---------- */
+.cabecera {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--negro); color: var(--blanco);
+  padding: 12px 18px 22px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  display: flex; align-items: center; gap: 14px;
+  clip-path: var(--roto-abajo);
+}
+.cabecera .logo { height: 42px; width: auto; }
+.cabecera .espacio { flex: 1; }
+.quien { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.quien .nombre { font-weight: 600; }
+.quien .rol { font-size: 12px; color: #bdbdbd; }
+
+.contenido { max-width: 1100px; margin: 0 auto; padding: 8px 16px 130px; }
+
+/* navegación: abajo en el celular, arriba en el computador */
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--negro);
+  display: flex; justify-content: space-around;
+  padding: 22px 6px max(10px, env(safe-area-inset-bottom));
+  clip-path: var(--roto-arriba);
+}
+.nav a {
+  flex: 1; max-width: 120px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  color: #bdbdbd; text-decoration: none; font-size: 12px; font-weight: 600;
+  padding: 6px 4px; border-radius: 10px;
+  transition: color var(--rapido);
+}
+.nav a svg { width: 26px; height: 26px; }
+.nav a.activo { color: var(--blanco); }
+.nav a.activo svg { color: var(--rojo); transform: scale(1.1); }
+
+@media (min-width: 900px) {
+  .nav {
+    position: sticky; top: 76px; bottom: auto;
+    max-width: 1100px; margin: 0 auto 8px; padding: 0 16px;
+    background: none; clip-path: none; justify-content: flex-start; gap: 8px;
+  }
+  .nav a {
+    flex: none; max-width: none; flex-direction: row; gap: 8px;
+    background: var(--blanco); color: #111; border: var(--borde);
+    font-family: var(--letra-titulo); font-size: 15px; padding: 8px 16px;
+    box-shadow: var(--sombra);
+  }
+  .nav a svg { width: 20px; height: 20px; }
+  .nav a.activo { background: var(--rojo); color: var(--blanco); }
+  .nav a.activo svg { color: var(--blanco); transform: none; }
+  .contenido { padding-bottom: 60px; }
+}
+
+/* ---------- Títulos ---------- */
+.titulo {
+  font-family: var(--letra-titulo); font-weight: 400;
+  font-size: clamp(26px, 6vw, 36px); line-height: 1.1;
+  color: var(--rojo);
+  -webkit-text-stroke: 1px var(--rojo-oscuro);
+  text-shadow: 2px 2px 0 var(--blanco), 3px 3px 0 var(--negro);
+  margin: 14px 0 16px;
+}
+.subtitulo { font-family: var(--letra-titulo); font-weight: 400; font-size: 20px; margin-bottom: 10px; }
+.tenue { color: var(--gris); }
+
+/* ---------- Paneles ---------- */
+.panel-roto {           /* negro con bordes rotos, como el hueco del logo */
+  background: var(--negro); color: var(--blanco);
+  padding: 22px 20px 20px;
+  clip-path: var(--roto-todo);
+}
+.sticker {              /* tarjeta blanca tipo sticker pegado en la pared */
+  background: var(--blanco); border: var(--borde); border-radius: var(--radio);
+  box-shadow: var(--sombra); padding: 14px 16px;
+}
+.rejilla { display: grid; gap: 14px; align-items: start; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+
+/* ---------- Botones ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--letra-titulo); font-size: 18px; letter-spacing: 0.02em;
+  padding: 11px 18px; border-radius: 10px; cursor: pointer; text-decoration: none;
+  background: var(--blanco); color: var(--negro); border: var(--borde);
+  box-shadow: 0 4px 0 var(--negro);
+  transition: transform var(--rapido), box-shadow var(--rapido);
+}
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--negro); }
+.btn-rojo { background: var(--rojo); color: var(--blanco); border-color: var(--blanco); box-shadow: 0 4px 0 var(--rojo-oscuro); }
+.btn-rojo:active { box-shadow: 0 1px 0 var(--rojo-oscuro); }
+.panel-roto .btn:not(.btn-rojo) { border-color: var(--blanco); }
+.btn-ancho { width: 100%; }
+.btn-chico { font-size: 14px; padding: 6px 12px; box-shadow: 0 3px 0 var(--negro); }
+.btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.enlace { background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Formularios ---------- */
+.campo { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; }
+.campo input, .campo select, .entrada {
+  width: 100%; padding: 12px 14px; font-size: 16px; font-weight: 400;
+  background: var(--blanco); color: #111;
+  border: var(--borde); border-radius: 10px; outline: none;
+}
+.panel-roto .campo input, .panel-roto .campo select { border-color: var(--blanco); }
+.campo input:focus, .campo select:focus, .entrada:focus { box-shadow: 0 0 0 3px var(--rojo); }
+.campo .error { color: var(--rojo); font-weight: 600; font-size: 13px; min-height: 1em; }
+.panel-roto .campo .error { color: #ff8a92; }
+
+/* ---------- Etiquetas pequeñas ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  font-family: var(--letra-titulo); font-size: 13px;
+  padding: 5px 11px; border-radius: 8px; cursor: pointer;
+  background: var(--blanco); border: 2px solid var(--negro);
+}
+.chip.activo { background: var(--rojo); color: var(--blanco); }
+.etiqueta { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: var(--negro); color: var(--blanco); }
+.etiqueta.roja { background: var(--rojo); }
+.etiqueta.verde { background: var(--verde); }
+.etiqueta.ambar { background: var(--ambar); }
+
+.precio { font-family: var(--letra-titulo); color: var(--rojo); -webkit-text-stroke: 0.4px var(--rojo-oscuro); }
+
+/* ---------- Avisos (toast) ---------- */
+.avisos { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
+.aviso {
+  background: var(--negro); color: var(--blanco); border: 2px solid var(--blanco);
+  border-radius: 10px; padding: 12px 16px; font-weight: 600; box-shadow: var(--sombra);
+  animation: aparece 0.35s var(--rebote);
+}
+.aviso.error { background: var(--rojo); }
+.aviso.sale { animation: desaparece 0.25s forwards; }
+@keyframes aparece { from { transform: translateY(20px) scale(0.9); opacity: 0; } }
+@keyframes desaparece { to { transform: translateY(10px); opacity: 0; } }
+@media (min-width: 900px) { .avisos { bottom: 28px; } }
+
+/* ---------- Ventanas (modal) ---------- */
+.fondo-modal {
+  position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: flex-end; justify-content: center; padding: 12px;
+  animation: oscurece 0.2s;
+}
+.modal {
+  width: min(100%, 520px); max-height: 90dvh; overflow: auto;
+  background: var(--blanco); border: var(--borde); border-radius: 16px; box-shadow: 6px 6px 0 var(--negro);
+  padding: 20px; animation: sube 0.35s var(--rebote);
+}
+.modal h2 { font-family: var(--letra-titulo); font-weight: 400; font-size: 22px; margin-bottom: 14px; }
+.modal .acciones { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+@media (min-width: 600px) { .fondo-modal { align-items: center; } }
+@keyframes oscurece { from { opacity: 0; } }
+@keyframes sube { from { transform: translateY(40px); opacity: 0; } }
+
+/* ---------- La mano de "pare": confirmación grande ---------- */
+.celebra { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.82); display: grid; place-items: center; text-align: center; color: var(--blanco); animation: oscurece 0.2s; }
+.celebra.sale { animation: desaparece 0.25s forwards; }
+.octagono { width: 150px; height: 150px; margin: 0 auto 18px; background: var(--blanco); padding: 7px; clip-path: var(--octagono); animation: golpe 0.55s var(--rebote) both; }
+.octagono > div { width: 100%; height: 100%; background: var(--rojo); clip-path: var(--octagono); display: grid; place-items: center; }
+.octagono svg { width: 64px; height: 76px; }
+.celebra h3 { font-family: var(--letra-titulo); font-weight: 400; font-size: 28px; }
+.celebra p { margin-top: 6px; font-size: 17px; color: #ddd; }
+@keyframes golpe { from { transform: scale(0) rotate(-45deg); } }
+
+/* ---------- Pantalla vacía o en construcción ---------- */
+.vacio { text-align: center; padding: 34px 24px; }
+.vacio p { margin: 8px auto 16px; max-width: 34ch; line-height: 1.5; color: #d0d0d0; }
+
+.cargando { display: grid; place-items: center; padding: 60px 0; }
+.cargando .octagono { width: 60px; height: 60px; padding: 4px; animation: gira 1s linear infinite; }
+@keyframes gira { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* dibujo de producto dentro de una tarjeta */
+.dibujo { height: 70px; }
+.dibujo svg { width: 100%; height: 100%; }

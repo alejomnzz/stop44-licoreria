@@ -1,0 +1,144 @@
+// Arranque de la app: revisa la sesión, arma la navegación y muestra cada
+// pantalla según la dirección (#vender, #inventario, ...).
+
+import { api, ErrorApi } from "./api.js";
+import { $, esc, dinero, avisar, confirmar, celebrar, cargando } from "./ui.js";
+import { dibujoProducto } from "./dibujos.js";
+
+// ---------- Íconos (trazos simples, heredan el color) ----------
+const ICONO = {
+  vender: '<path d="M3 4h2l2.4 11h11.2L21 7H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
+  inventario: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
+  ventas: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  resumen: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  usuarios: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.3 3.5 5.2"/>',
+};
+const icono = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONO[n]}</svg>`;
+
+// ---------- Pantallas ----------
+// Cada pantalla es una función que recibe el contenedor y la sesión.
+// Las de verdad llegan en los próximos pasos; por ahora muestran en qué paso llegan.
+const enConstruccion = (titulo, paso) => (el) => {
+  el.innerHTML = `
+    <h1 class="titulo">${titulo}</h1>
+    <div class="panel-roto vacio">
+      <p>Esta pantalla llega en el paso ${paso}.</p>
+      <a class="btn btn-rojo" href="#muestrario">Ver el muestrario del diseño</a>
+    </div>`;
+};
+
+export const PANTALLAS = {
+  vender:     { nombre: "Vender",     soloAdmin: false, mostrar: enConstruccion("Vender", 8) },
+  inventario: { nombre: "Inventario", soloAdmin: true,  mostrar: enConstruccion("Inventario", 9) },
+  ventas:     { nombre: "Ventas",     soloAdmin: false, mostrar: enConstruccion("Ventas del día", 10) },
+  resumen:    { nombre: "Resumen",    soloAdmin: true,  mostrar: enConstruccion("Resumen", 11) },
+  usuarios:   { nombre: "Usuarios",   soloAdmin: true,  mostrar: enConstruccion("Usuarios", 11) },
+};
+
+// Muestrario: todas las piezas del diseño en un solo lugar, para revisarlas
+function muestrario(el) {
+  const categorias = ["Aguardiente", "Ron", "Whisky", "Cerveza", "Vino", "Gaseosas y aguas", "Energizantes", "Hielo"];
+  el.innerHTML = `
+    <h1 class="titulo">Muestrario</h1>
+    <div class="rejilla">
+      <section class="sticker">
+        <h2 class="subtitulo">Botones</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:10px">
+          <button class="btn btn-rojo" data-prueba="celebrar">Cobrar</button>
+          <button class="btn" data-prueba="aviso">Aviso</button>
+          <button class="btn" data-prueba="error">Error</button>
+          <button class="btn btn-chico" data-prueba="ventana">Ventana</button>
+        </div>
+      </section>
+      <section class="sticker">
+        <h2 class="subtitulo">Etiquetas</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <span class="chip activo">Todo</span><span class="chip">Aguardiente</span><span class="chip">Cerveza</span>
+          <span class="etiqueta">18</span><span class="etiqueta roja">Quedan 3</span>
+          <span class="etiqueta verde">Activo</span><span class="etiqueta ambar">Pendiente</span>
+        </div>
+      </section>
+      <form class="panel-roto" style="display:flex;flex-direction:column;gap:12px" onsubmit="return false">
+        <label class="campo">Usuario<input placeholder="laura" autocomplete="off"></label>
+        <label class="campo">Precio de venta<input inputmode="numeric" placeholder="$12,50"><span class="error">El precio debe ser mayor que cero.</span></label>
+        <button class="btn btn-rojo btn-ancho">Guardar</button>
+      </form>
+    </div>
+    <h2 class="subtitulo" style="margin-top:22px">Dibujos de productos por categoría</h2>
+    <div class="rejilla" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">
+      ${categorias.map((c) => `
+        <div class="sticker" style="display:flex;flex-direction:column;gap:2px">
+          <div class="dibujo">${dibujoProducto(c)}</div>
+          <b>${esc(c)}</b><span class="precio" style="font-size:19px">${dinero(1250)}</span>
+        </div>`).join("")}
+    </div>`;
+  el.querySelectorAll("[data-prueba]").forEach((b) => b.addEventListener("click", async () => {
+    const p = b.dataset.prueba;
+    if (p === "celebrar") celebrar("Venta registrada", `${dinero(1675)} · Efectivo`);
+    if (p === "aviso") avisar("Producto guardado");
+    if (p === "error") avisar("Solo hay 3 de Aguardiente Antioqueño.", "error");
+    if (p === "ventana") {
+      const si = await confirmar("¿Anular esta venta?", "Los productos vuelven al inventario.", "Sí, anular");
+      avisar(si ? "Venta anulada" : "No se anuló nada");
+    }
+  }));
+}
+
+// ---------- Sesión y navegación ----------
+let sesion = null;
+
+function pintarCabecera() {
+  $("#quien").innerHTML = sesion
+    ? `<div style="text-align:right"><div class="nombre">${esc(sesion.nombre)}</div><div class="rol">${sesion.rol === "admin" ? "Administrador" : "Vendedor"}</div></div>
+       <button class="btn btn-chico" id="salir" style="border-color:#fff">Salir</button>`
+    : "";
+  $("#salir")?.addEventListener("click", async () => {
+    await api.post("/api/auth/salir");
+    sesion = null;
+    iniciar();
+  });
+}
+
+function pintarNav(actual) {
+  const visibles = Object.entries(PANTALLAS).filter(([, p]) => !p.soloAdmin || sesion?.rol === "admin");
+  $("#nav").innerHTML = visibles.map(([id, p]) =>
+    `<a href="#${id}" class="${id === actual ? "activo" : ""}" ${id === actual ? 'aria-current="page"' : ""}>${icono(id)}<span>${p.nombre}</span></a>`).join("");
+}
+
+function sinSesion() {
+  // Temporal: la pantalla de ingreso y registro llega en el paso 7
+  $("#nav").innerHTML = "";
+  $("#contenido").innerHTML = `
+    <img src="img/logo_muro.jpg" alt="Stop 44" style="max-width:420px;margin:10px auto">
+    <div class="panel-roto vacio" style="max-width:460px;margin:0 auto">
+      <p>La pantalla para ingresar llega en el paso 7. Por ahora ingresa desde la página de pruebas y vuelve aquí.</p>
+      <a class="btn btn-rojo" href="/docs">Ir a la página de pruebas</a>
+    </div>`;
+}
+
+function mostrar() {
+  const id = location.hash.slice(1) || "vender";
+  const el = $("#contenido");
+  if (id === "muestrario") { pintarNav(null); return muestrario(el); }
+  const pantalla = PANTALLAS[id];
+  if (!pantalla || (pantalla.soloAdmin && sesion.rol !== "admin")) { location.hash = "#vender"; return; }
+  pintarNav(id);
+  pantalla.mostrar(el, sesion);
+  window.scrollTo(0, 0);
+}
+
+async function iniciar() {
+  $("#contenido").innerHTML = cargando();
+  try {
+    sesion = await api.get("/api/auth/yo");
+  } catch (e) {
+    sesion = null;
+    if (!(e instanceof ErrorApi) || e.estado !== 401) avisar(e.message, "error");
+  }
+  pintarCabecera();
+  if (sesion) mostrar(); else sinSesion();
+}
+
+window.addEventListener("hashchange", () => { if (sesion) mostrar(); else if (location.hash === "#muestrario") muestrario($("#contenido")); });
+iniciar();
+

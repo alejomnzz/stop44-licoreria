@@ -3,7 +3,7 @@
 // El administrador ve todo; el vendedor solo sus ventas y sin ganancias.
 
 import { api } from "./api.js";
-import { $, esc, dinero, fechaHoy, avisar, abrirModal, cerrarModal, confirmar, cargando } from "./ui.js";
+import { $, esc, dinero, fechaHoy, avisar, abrirModal, cerrarModal, confirmar, cargando, barraPagos } from "./ui.js";
 
 let raiz = null, sesion = null;
 let fecha = fechaHoy();
@@ -37,8 +37,11 @@ export async function mostrarVentas(el, usuario) {
 
   const validas = ventas.filter((v) => !v.anulada);
   const total = validas.reduce((s, v) => s + v.total, 0);
-  const efectivo = validas.filter((v) => v.metodo === "Efectivo").reduce((s, v) => s + v.total, 0);
-  const deuna = total - efectivo;
+  const porMetodo = {};
+  validas.forEach((v) => { porMetodo[v.metodo] = (porMetodo[v.metodo] || 0) + v.total; });
+  const efectivo = porMetodo.Efectivo || 0;
+  const abonosEfectivo = resumen?.abonos?.Efectivo || 0;          // pagos de fiados (solo lo ve el admin)
+  const abonosTotal = Object.values(resumen?.abonos || {}).reduce((a, b) => a + b, 0);
 
   el.innerHTML = `<div class="pantalla-ventas">
     <div class="encabezado">
@@ -70,16 +73,11 @@ export async function mostrarVentas(el, usuario) {
     ${total ? `
     <section class="sticker caja">
       <h2 class="subtitulo">Cómo pagaron</h2>
-      <div class="barra-pagos" role="img" aria-label="Efectivo ${dinero(efectivo)}, Deuna ${dinero(deuna)}">
-        <span class="pago-efectivo" style="flex:${efectivo || 0.0001}"></span>
-        <span class="pago-deuna" style="flex:${deuna || 0.0001}"></span>
-      </div>
-      <div class="pagos-detalle">
-        <div><i class="punto efectivo"></i>Efectivo <b>${dinero(efectivo)}</b></div>
-        <div><i class="punto deuna"></i>Deuna <b>${dinero(deuna)}</b></div>
-      </div>
-      <p class="en-caja">Debe haber en la caja <b>${dinero(efectivo)}</b> en efectivo${fecha === fechaHoy() ? " de las ventas de hoy" : ""}.</p>
-    </section>` : ""}
+      ${barraPagos(porMetodo)}
+      ${abonosTotal ? `<p class="abonos-dia">Además se cobraron <b>${dinero(abonosTotal)}</b> de fiados (${Object.entries(resumen.abonos).map(([m, t]) => `${m.toLowerCase()} ${dinero(t)}`).join(", ")}).</p>` : ""}
+      <p class="en-caja">Debe haber en la caja <b>${dinero(efectivo + abonosEfectivo)}</b> en efectivo${abonosEfectivo ? " (ventas + abonos)" : ""}${fecha === fechaHoy() ? " de hoy" : ""}.</p>
+    </section>` : abonosTotal ? `
+    <section class="sticker caja"><p class="abonos-dia">Se cobraron <b>${dinero(abonosTotal)}</b> de fiados. En la caja debe haber <b>${dinero(abonosEfectivo)}</b> en efectivo.</p></section>` : ""}
 
     ${admin && resumen.productos.length ? `
     <div class="dos-columnas">
@@ -112,12 +110,12 @@ function tarjetaVenta(v, admin) {
       <button class="venta-cabeza" aria-expanded="false">
         <span class="venta-hora">${esc(v.hora)}</span>
         <span class="venta-items">${resumenItems}</span>
-        <span class="venta-total">${v.anulada ? '<span class="etiqueta roja">Anulada</span>' : ""}<b class="precio">${dinero(v.total)}</b></span>
+        <span class="venta-total">${v.anulada ? '<span class="etiqueta roja">Anulada</span>' : v.metodo === "Fiado" ? '<span class="etiqueta dorada">Fiado</span>' : ""}<b class="precio">${dinero(v.total)}</b></span>
       </button>
       <div class="venta-detalle" hidden>
         <ul>${v.items.map((i) => `<li><span>${i.cantidad} × ${esc(i.nombre)}</span><span class="tenue">${dinero(i.precio)} c/u</span><b>${dinero(i.precio * i.cantidad)}</b></li>`).join("")}</ul>
         <p class="tenue">
-          ${v.metodo === "Efectivo" ? `Efectivo · pagó ${dinero(v.recibido)} · vueltas ${dinero(v.vueltas)}` : "Deuna"}
+          ${v.metodo === "Efectivo" ? `Efectivo · pagó ${dinero(v.recibido)} · vueltas ${dinero(v.vueltas)}` : v.metodo === "Fiado" ? `Fiado a ${esc(v.cliente)}` : "Deuna"}
           ${v.vendedor ? ` · vendió ${esc(v.vendedor)}` : ""}
           ${admin && !v.anulada ? ` · ganancia ${dinero(v.ganancia)}` : ""}
         </p>

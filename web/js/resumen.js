@@ -2,7 +2,7 @@
 // 7 días, 30 días o el mes, comparado con el periodo anterior.
 
 import { api } from "./api.js";
-import { $, esc, dinero, cargando } from "./ui.js";
+import { $, esc, dinero, cargando, barraPagos } from "./ui.js";
 
 const PERIODOS = { semana: "Últimos 7 días", mes: "Este mes", treinta: "Últimos 30 días" };
 let periodo = "semana";
@@ -52,7 +52,7 @@ export async function mostrarResumen(el) {
     return;
   }
   const { hoy, actual, antes, dias, horas, bajos } = datos;
-  const efectivo = actual.por_metodo.Efectivo || 0, deuna = actual.por_metodo.Deuna || 0;
+  const abonos = Object.values(actual.abonos || {}).reduce((a, b) => a + b, 0);
   const masVendidos = [...actual.productos].sort((a, b) => b.total - a.total).slice(0, 10);   // por plata que dejaron
   const maxProducto = Math.max(1, ...masVendidos.map((p) => p.total));
 
@@ -70,6 +70,7 @@ export async function mostrarResumen(el) {
       <div class="cifra"><small>Ganancia</small><b class="ganancia">${dinero(actual.ganancia)}</b>${variacion(actual.ganancia, antes.ganancia)}</div>
       <div class="cifra"><small>Ventas</small><b>${actual.num_ventas}</b>${variacion(actual.num_ventas, antes.num_ventas)}</div>
       <div class="cifra"><small>Venta promedio</small><b>${dinero(actual.promedio)}</b></div>
+      ${actual.por_cobrar ? `<a class="cifra alerta-suave" href="#fiados"><small>Fiados por cobrar</small><b>${dinero(actual.por_cobrar)}</b></a>` : ""}
     </div>
     <p class="tenue comparacion">Las flechas comparan con los ${diasEntre(rango(hoy).desde, hoy) + 1} días anteriores.</p>
 
@@ -87,13 +88,8 @@ export async function mostrarResumen(el) {
       </section>
       <section class="sticker">
         <h2 class="subtitulo">Cómo pagaron</h2>
-        <div class="barra-pagos" role="img" aria-label="Efectivo ${dinero(efectivo)}, Deuna ${dinero(deuna)}">
-          <span class="pago-efectivo" style="flex:${efectivo || 0.0001}"></span><span class="pago-deuna" style="flex:${deuna || 0.0001}"></span>
-        </div>
-        <div class="pagos-detalle">
-          <div><i class="punto efectivo"></i>Efectivo <b>${dinero(efectivo)}</b> <span class="tenue">${Math.round((efectivo / actual.total) * 100)}%</span></div>
-          <div><i class="punto deuna"></i>Deuna <b>${dinero(deuna)}</b> <span class="tenue">${Math.round((deuna / actual.total) * 100)}%</span></div>
-        </div>
+        ${barraPagos(actual.por_metodo)}
+        ${abonos ? `<p class="abonos-dia">En este periodo se cobraron <b>${dinero(abonos)}</b> de fiados.</p>` : ""}
         ${Object.keys(actual.por_vendedor).length ? `
           <h2 class="subtitulo" style="margin-top:20px">Por vendedor</h2>
           <ol class="top">${Object.entries(actual.por_vendedor).map(([n, t]) => `<li><span>${esc(n)}</span><span></span><b>${dinero(t)}</b></li>`).join("")}</ol>` : ""}

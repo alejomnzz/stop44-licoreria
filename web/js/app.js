@@ -9,6 +9,7 @@ import { mostrarVender } from "./vender.js";
 import { mostrarInventario } from "./inventario.js";
 import { mostrarVentas } from "./ventas.js";
 import { mostrarResumen } from "./resumen.js";
+import { mostrarFiados } from "./fiados.js";
 import { mostrarUsuarios, cambiarMiClave, actualizarAviso } from "./usuarios.js";
 
 // ---------- Íconos (trazos simples, heredan el color) ----------
@@ -16,6 +17,7 @@ const ICONO = {
   vender: '<path d="M3 4h2l2.4 11h11.2L21 7H6.2"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/>',
   inventario: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
   ventas: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  fiados: '<path d="M4 4h11a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M18 20a2 2 0 0 0 2-2V8"/><path d="M8 9h6M8 13h4"/>',
   resumen: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   usuarios: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.9.7 3.1 2.3 3.5 5.2"/>',
 };
@@ -27,6 +29,7 @@ export const PANTALLAS = {
   vender:     { nombre: "Vender",     soloAdmin: false, mostrar: mostrarVender },
   inventario: { nombre: "Inventario", soloAdmin: true,  mostrar: mostrarInventario },
   ventas:     { nombre: "Ventas",     soloAdmin: false, mostrar: mostrarVentas },
+  fiados:     { nombre: "Fiados",     soloAdmin: false, mostrar: mostrarFiados },
   resumen:    { nombre: "Resumen",    soloAdmin: true,  mostrar: mostrarResumen },
   usuarios:   { nombre: "Usuarios",   soloAdmin: true,  mostrar: mostrarUsuarios },
 };

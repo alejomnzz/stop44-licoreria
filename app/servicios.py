@@ -6,6 +6,7 @@ así que todo se puede probar con pytest.
 
 from __future__ import annotations
 
+import re
 import secrets
 import sqlite3
 from collections import defaultdict
@@ -13,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import db
-from .modelos import METODOS_PAGO, ItemVenta, Producto, ProductoVendido, ResumenDia, Venta
+from .modelos import METODOS_ABONO, METODOS_PAGO, Cliente, ItemVenta, Producto, ProductoVendido, ResumenDia, Venta
 from .utils import ahora, dinero, fecha_corta, normalizar, sumar_dias
 
 
@@ -209,14 +210,22 @@ class Tienda:
         return sorted(self.productos(solo_bajo=True), key=lambda p: p.stock)
 
     # --------------------------------------------------------------- ventas
-    def registrar_venta(self, items: dict[int, int], metodo: str,
-                        recibido: int | None = None, usuario_id: int | None = None) -> Venta:
-        """items = {producto_id: cantidad}. Descuenta el stock en una sola transacción."""
+    def registrar_venta(self, items: dict[int, int], metodo: str, recibido: int | None = None,
+                        usuario_id: int | None = None, cliente_id: int | None = None) -> Venta:
+        """items = {producto_id: cantidad}. Descuenta el stock en una sola transacción.
+
+        Con metodo="Fiado" hay que indicar el cliente: la venta queda a su cuenta.
+        """
         items = {pid: c for pid, c in items.items() if c > 0}
         if not items:
             raise ErrorTienda("La venta está vacía.")
         if metodo not in METODOS_PAGO:
             raise ErrorTienda("Método de pago no válido.")
+        if metodo == "Fiado":
+            if not cliente_id or self.cliente(cliente_id) is None:
+                raise ErrorTienda("Elige a qué cliente se le fía.")
+        else:
+            cliente_id = None
         lineas: list[ItemVenta] = []
         for pid, cant in items.items():
             p = self.producto(pid)
@@ -236,12 +245,12 @@ class Tienda:
         momento = self._ahora()
         venta = Venta(fecha=momento.date().isoformat(), hora=momento.strftime("%H:%M"),
                       metodo=metodo, total=total, costo_total=costo_total,
-                      items=lineas, recibido=recibido, usuario_id=usuario_id)
+                      items=lineas, recibido=recibido, usuario_id=usuario_id, cliente_id=cliente_id)
         with self.con:
             cur = self.con.execute(
-                "INSERT INTO ventas (fecha, hora, metodo, total, costo_total, recibido, usuario_id)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (venta.fecha, venta.hora, metodo, total, costo_total, recibido, usuario_id))
+                "INSERT INTO ventas (fecha, hora, metodo, total, costo_total, recibido, usuario_id, cliente_id)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (venta.fecha, venta.hora, metodo, total, costo_total, recibido, usuario_id, cliente_id))
             venta.id = cur.lastrowid
             for i in lineas:
                 self.con.execute(
@@ -273,8 +282,9 @@ class Tienda:
                 self._movimiento(i.producto_id, "anulacion", i.cantidad, stock,
                                  f"Anulación venta #{venta_id}", usuario_id)
 
-    _SELECT_VENTA = ("SELECT v.*, COALESCE(u.nombre, '') AS vendedor FROM ventas v"
-                     " LEFT JOIN usuarios u ON u.id = v.usuario_id")
+    _SELECT_VENTA = ("SELECT v.*, COALESCE(u.nombre, '') AS vendedor, COALESCE(c.nombre, '') AS cliente"
+                     " FROM ventas v LEFT JOIN usuarios u ON u.id = v.usuario_id"
+                     " LEFT JOIN clientes c ON c.id = v.cliente_id")
 
     def _venta(self, f: sqlite3.Row) -> Venta:
         items = [ItemVenta(r["producto_id"], r["nombre"], r["cantidad"], r["precio"], r["costo"])
@@ -283,7 +293,7 @@ class Tienda:
         return Venta(id=f["id"], fecha=f["fecha"], hora=f["hora"], metodo=f["metodo"],
                      total=f["total"], costo_total=f["costo_total"], recibido=f["recibido"],
                      anulada=bool(f["anulada"]), usuario_id=f["usuario_id"],
-                     vendedor=f["vendedor"], items=items)
+                     vendedor=f["vendedor"], cliente_id=f["cliente_id"], cliente=f["cliente"], items=items)
 
     def venta(self, venta_id: int) -> Venta | None:
         f = self.con.execute(self._SELECT_VENTA + " WHERE v.id = ?", (venta_id,)).fetchone()
@@ -310,6 +320,9 @@ class Tienda:
         r.por_metodo = {m: t for m, t in self.con.execute(
             "SELECT metodo, SUM(total) FROM ventas WHERE anulada = 0 AND fecha BETWEEN ? AND ?"
             " GROUP BY metodo ORDER BY SUM(total) DESC", (desde, hasta))}
+        r.abonos = {m: t for m, t in self.con.execute(
+            "SELECT metodo, SUM(monto) FROM abonos WHERE anulado = 0 AND fecha BETWEEN ? AND ?"
+            " GROUP BY metodo", (desde, hasta))}
         r.por_vendedor = {n: t for n, t in self.con.execute(
             "SELECT COALESCE(u.nombre, 'Sin usuario'), SUM(v.total) FROM ventas v"
             " LEFT JOIN usuarios u ON u.id = v.usuario_id"
@@ -350,13 +363,127 @@ class Tienda:
             destino.close()
             return ruta.read_bytes()
 
+    # --------------------------------------------------------------- fiados
+    _SELECT_CLIENTE = """
+        SELECT c.*,
+          COALESCE((SELECT SUM(total) FROM ventas
+                    WHERE cliente_id = c.id AND metodo = 'Fiado' AND anulada = 0), 0) AS fiado,
+          COALESCE((SELECT SUM(monto) FROM abonos WHERE cliente_id = c.id AND anulado = 0), 0) AS abonado,
+          COALESCE((SELECT MAX(m) FROM (
+              SELECT fecha || ' ' || hora AS m FROM ventas WHERE cliente_id = c.id AND anulada = 0
+              UNION ALL
+              SELECT fecha || ' ' || hora FROM abonos WHERE cliente_id = c.id AND anulado = 0)), '') AS ultimo
+        FROM clientes c WHERE c.activo = 1"""
+
+    @staticmethod
+    def _cliente(f: sqlite3.Row) -> Cliente:
+        return Cliente(id=f["id"], nombre=f["nombre"], telefono=f["telefono"], nota=f["nota"],
+                       creado=f["creado"], fiado=f["fiado"], abonado=f["abonado"], ultimo_movimiento=f["ultimo"])
+
+    def clientes(self, buscar: str = "") -> list[Cliente]:
+        """Clientes de fiado, primero los que más deben."""
+        lista = [self._cliente(f) for f in self.con.execute(self._SELECT_CLIENTE)]
+        q = normalizar(buscar.strip())
+        if q:
+            lista = [c for c in lista if q in normalizar(f"{c.nombre} {c.telefono}")]
+        return sorted(lista, key=lambda c: (-c.saldo, normalizar(c.nombre)))
+
+    def cliente(self, cliente_id: int) -> Cliente | None:
+        f = self.con.execute(self._SELECT_CLIENTE + " AND c.id = ?", (cliente_id,)).fetchone()
+        return self._cliente(f) if f else None
+
+    def guardar_cliente(self, c: Cliente) -> Cliente:
+        c.nombre = " ".join(c.nombre.split())
+        c.telefono = re.sub(r"[^\d+]", "", c.telefono or "")
+        if len(c.nombre) < 2:
+            raise ErrorTienda("Escribe el nombre del cliente.")
+        repetido = next((x for x in self.clientes()
+                         if normalizar(x.nombre) == normalizar(c.nombre) and x.id != c.id), None)
+        if repetido:
+            raise ErrorTienda(f"Ya hay un cliente llamado {repetido.nombre}. Agrégale el apellido o un apodo.")
+        with self.con:
+            if c.id is None:
+                cur = self.con.execute(
+                    "INSERT INTO clientes (nombre, telefono, nota, creado) VALUES (?, ?, ?, ?)",
+                    (c.nombre, c.telefono, c.nota.strip(), self._ahora().strftime("%Y-%m-%d %H:%M:%S")))
+                c.id = cur.lastrowid
+            else:
+                if self.cliente(c.id) is None:
+                    raise ErrorTienda("Ese cliente ya no existe.")
+                self.con.execute("UPDATE clientes SET nombre = ?, telefono = ?, nota = ? WHERE id = ?",
+                                 (c.nombre, c.telefono, c.nota.strip(), c.id))
+        return self.cliente(c.id)
+
+    def eliminar_cliente(self, cliente_id: int) -> None:
+        c = self.cliente(cliente_id)
+        if c is None:
+            raise ErrorTienda("Ese cliente ya no existe.")
+        if c.saldo > 0:
+            raise ErrorTienda(f"{c.nombre} todavía debe {dinero(c.saldo)}. Solo se puede quitar cuando no deba nada.")
+        with self.con:
+            self.con.execute("UPDATE clientes SET activo = 0 WHERE id = ?", (cliente_id,))
+
+    def registrar_abono(self, cliente_id: int, monto: int, metodo: str,
+                        usuario_id: int | None = None) -> Cliente:
+        c = self.cliente(cliente_id)
+        if c is None:
+            raise ErrorTienda("Ese cliente ya no existe.")
+        if metodo not in METODOS_ABONO:
+            raise ErrorTienda("El abono se recibe en efectivo o por Deuna.")
+        if monto <= 0:
+            raise ErrorTienda("Escribe cuánto está pagando.")
+        if monto > c.saldo:
+            raise ErrorTienda(f"{c.nombre} solo debe {dinero(c.saldo)}.")
+        momento = self._ahora()
+        with self.con:
+            self.con.execute(
+                "INSERT INTO abonos (cliente_id, fecha, hora, monto, metodo, usuario_id) VALUES (?, ?, ?, ?, ?, ?)",
+                (cliente_id, momento.date().isoformat(), momento.strftime("%H:%M"), monto, metodo, usuario_id))
+        return self.cliente(cliente_id)
+
+    def anular_abono(self, abono_id: int) -> Cliente:
+        f = self.con.execute("SELECT cliente_id, anulado FROM abonos WHERE id = ?", (abono_id,)).fetchone()
+        if f is None:
+            raise ErrorTienda("Ese abono no existe.")
+        if f["anulado"]:
+            raise ErrorTienda("Ese abono ya estaba anulado.")
+        with self.con:
+            self.con.execute("UPDATE abonos SET anulado = 1 WHERE id = ?", (abono_id,))
+        return self.cliente(f["cliente_id"])
+
+    def cuenta_cliente(self, cliente_id: int) -> list[dict]:
+        """Lo que el cliente llevó fiado y lo que ha abonado, del más nuevo al más viejo."""
+        movs = [{"tipo": "fiado", "id": v.id, "fecha": v.fecha, "hora": v.hora, "monto": v.total,
+                 "detalle": ", ".join(f"{i.cantidad}× {i.nombre}" for i in v.items),
+                 "usuario": v.vendedor, "anulado": v.anulada}
+                for v in (self._venta(f) for f in self.con.execute(
+                    self._SELECT_VENTA + " WHERE v.cliente_id = ? AND v.metodo = 'Fiado'", (cliente_id,)))]
+        movs += [{"tipo": "abono", "id": f["id"], "fecha": f["fecha"], "hora": f["hora"], "monto": f["monto"],
+                  "detalle": f"Abono en {f['metodo'].lower()}" if f["metodo"] == "Efectivo" else "Abono por Deuna",
+                  "usuario": f["usuario"], "anulado": bool(f["anulado"])}
+                 for f in self.con.execute(
+                     "SELECT a.*, COALESCE(u.nombre, '') AS usuario FROM abonos a"
+                     " LEFT JOIN usuarios u ON u.id = a.usuario_id WHERE a.cliente_id = ?", (cliente_id,))]
+        return sorted(movs, key=lambda m: (m["fecha"], m["hora"], m["tipo"] == "abono", m["id"]), reverse=True)
+
+    def total_por_cobrar(self) -> int:
+        return sum(c.saldo for c in self.clientes())
+
     def texto_cierre(self, fecha: str) -> str:
         """Resumen del día listo para pegar en WhatsApp."""
         r = self.resumen(fecha)
         lineas = [f"*STOP 44 — Cierre del {fecha_corta(fecha)}*", "",
                   f"Ventas: {r.num_ventas}", f"*Total: {dinero(r.total)}*"]
         lineas += [f"• {m}: {dinero(t)}" for m, t in r.por_metodo.items()]
+        if r.abonos:
+            lineas += ["", f"Abonos de fiados: {dinero(sum(r.abonos.values()))}"]
+            lineas += [f"• {m}: {dinero(t)}" for m, t in r.abonos.items()]
+        en_caja = r.por_metodo.get("Efectivo", 0) + r.abonos.get("Efectivo", 0)
+        lineas += ["", f"*Efectivo en caja: {dinero(en_caja)}*"]
         lineas += ["", f"Ganancia estimada: {dinero(r.ganancia)}"]
+        por_cobrar = self.total_por_cobrar()
+        if por_cobrar:
+            lineas += [f"Fiados por cobrar (total): {dinero(por_cobrar)}"]
         if r.productos:
             lineas += ["", "Más vendidos:"]
             lineas += [f"• {p.nombre} ({p.cantidad})" for p in r.productos[:5]]

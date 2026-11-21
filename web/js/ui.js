@@ -92,3 +92,17 @@ export function celebrar(titulo, detalle = "", duracion = 1700) {
 }
 
 export const cargando = () => `<div class="cargando" aria-label="Cargando"><div class="octagono"><div></div></div></div>`;
+
+// Barra de "Cómo pagaron": efectivo, Deuna y fiado, cada uno con su color y su valor escrito
+export function barraPagos(porMetodo) {
+  const metodos = [["Efectivo", "efectivo"], ["Deuna", "deuna"], ["Fiado", "fiado"]];
+  const total = metodos.reduce((s, [m]) => s + (porMetodo[m] || 0), 0) || 1;
+  const visibles = metodos.filter(([m]) => porMetodo[m]);
+  return `
+    <div class="barra-pagos" role="img" aria-label="${metodos.map(([m]) => `${m} ${dinero(porMetodo[m] || 0)}`).join(", ")}">
+      ${visibles.map(([m, c]) => `<span class="pago-${c}" style="flex:${porMetodo[m]}"></span>`).join("")}
+    </div>
+    <div class="pagos-detalle">
+      ${metodos.map(([m, c]) => `<div><i class="punto ${c}"></i>${m} <b>${dinero(porMetodo[m] || 0)}</b> <span class="tenue">${Math.round(((porMetodo[m] || 0) / total) * 100)}%</span></div>`).join("")}
+    </div>`;
+}

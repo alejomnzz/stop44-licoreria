@@ -149,3 +149,78 @@ def test_ventas_por_hora(tienda):
     v = tienda.registrar_venta({agua.id: 2}, "Efectivo")
     horas = tienda.ventas_por_hora(v.fecha, v.fecha)
     assert len(horas) == 24 and horas[int(v.hora[:2])] == 2500
+
+
+# ------------------------------------------------------------------ fiados
+from app.modelos import Cliente  # noqa: E402
+
+
+def test_fiado_y_abonos(tienda):
+    juan = tienda.guardar_cliente(Cliente("Juan Pérez", telefono="099 123 4567"))
+    assert juan.telefono == "0991234567" and juan.saldo == 0
+    agua = tienda.productos("aguardiente")[0]
+    cerv = tienda.productos("cerveza")[0]
+    v = tienda.registrar_venta({agua.id: 1, cerv.id: 4}, "Fiado", cliente_id=juan.id)
+    assert v.cliente == "Juan Pérez" and v.recibido is None
+    assert tienda.cliente(juan.id).saldo == 1250 + 4 * 125            # debe $17,50
+    assert tienda.producto(agua.id).stock == 9                        # el stock baja igual
+
+    tienda.registrar_abono(juan.id, 1000, "Efectivo")
+    assert tienda.cliente(juan.id).saldo == 750
+    with pytest.raises(ErrorTienda, match="solo debe"):
+        tienda.registrar_abono(juan.id, 800, "Deuna")                  # no se puede pagar de más
+    tienda.registrar_abono(juan.id, 750, "Deuna")
+    assert tienda.cliente(juan.id).saldo == 0
+
+    cuenta = tienda.cuenta_cliente(juan.id)
+    assert [m["tipo"] for m in cuenta] == ["abono", "abono", "fiado"]
+
+
+def test_fiado_necesita_cliente(tienda):
+    agua = tienda.productos("aguardiente")[0]
+    with pytest.raises(ErrorTienda, match="cliente"):
+        tienda.registrar_venta({agua.id: 1}, "Fiado")
+    with pytest.raises(ErrorTienda):
+        tienda.registrar_abono(999, 100, "Efectivo")
+
+
+def test_anular_fiado_y_abono_ajustan_la_deuda(tienda):
+    ana = tienda.guardar_cliente(Cliente("Ana"))
+    agua = tienda.productos("aguardiente")[0]
+    v1 = tienda.registrar_venta({agua.id: 2}, "Fiado", cliente_id=ana.id)
+    tienda.registrar_venta({agua.id: 1}, "Fiado", cliente_id=ana.id)
+    tienda.registrar_abono(ana.id, 500, "Efectivo")
+    assert tienda.cliente(ana.id).saldo == 3 * 1250 - 500
+    tienda.anular_venta(v1.id)
+    assert tienda.cliente(ana.id).saldo == 1250 - 500
+    abono = tienda.cuenta_cliente(ana.id)[0]
+    tienda.anular_abono(abono["id"])
+    assert tienda.cliente(ana.id).saldo == 1250
+
+
+def test_clientes_ordenados_y_no_se_borra_si_debe(tienda):
+    a = tienda.guardar_cliente(Cliente("Ana"))
+    b = tienda.guardar_cliente(Cliente("Beto"))
+    agua = tienda.productos("aguardiente")[0]
+    tienda.registrar_venta({agua.id: 1}, "Fiado", cliente_id=b.id)
+    assert [c.nombre for c in tienda.clientes()] == ["Beto", "Ana"]    # primero el que más debe
+    assert [c.nombre for c in tienda.clientes("bet")] == ["Beto"]
+    with pytest.raises(ErrorTienda, match="Ya hay un cliente llamado Ana"):
+        tienda.guardar_cliente(Cliente("ana"))
+    with pytest.raises(ErrorTienda, match="todavía debe"):
+        tienda.eliminar_cliente(b.id)
+    tienda.eliminar_cliente(a.id)
+    assert [c.nombre for c in tienda.clientes()] == ["Beto"]
+    assert tienda.total_por_cobrar() == 1250
+
+
+def test_cierre_con_fiados_y_abonos(tienda):
+    c = tienda.guardar_cliente(Cliente("Carlos"))
+    agua = tienda.productos("aguardiente")[0]
+    tienda.registrar_venta({agua.id: 1}, "Efectivo")                   # $12,50 en caja
+    tienda.registrar_venta({agua.id: 2}, "Fiado", cliente_id=c.id)     # $25,00 fiado
+    tienda.registrar_abono(c.id, 1000, "Efectivo")                     # $10,00 en caja
+    r = tienda.resumen(hoy_ecuador())
+    assert r.por_metodo == {"Fiado": 2500, "Efectivo": 1250} and r.abonos == {"Efectivo": 1000}
+    texto = tienda.texto_cierre(hoy_ecuador())
+    assert "Efectivo en caja: $22,50" in texto and "Fiados por cobrar (total): $15,00" in texto

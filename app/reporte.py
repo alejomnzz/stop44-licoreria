@@ -1,6 +1,6 @@
 """Reporte de ventas en Excel, generado en el momento de descargarlo.
 
-Hojas: Resumen, Por día, Por semana, Por mes, Productos, Ventas, Detalle e Inventario.
+Hojas: Resumen, Por día, Por semana, Por mes, Productos, Fiados, Ventas, Abonos, Detalle e Inventario.
 Los totales son fórmulas de Excel (SUMIFS, COUNTIFS...) que leen la hoja Ventas, así
 que si alguien corrige un dato el reporte se recalcula. Además cada fórmula lleva su
 resultado ya calculado, para que se vea bien en el celular aunque el visor no calcule.
@@ -49,6 +49,19 @@ def generar_excel(tienda: Tienda) -> bytes:
             "estado": ANULADA if f["anulada"] else VALIDA, "productos": "", "unidades": 0,
         })
     por_id = {v["id"]: v for v in ventas}
+    for f in con.execute("SELECT id, cliente_id, (SELECT nombre FROM clientes WHERE id = ventas.cliente_id) AS cliente FROM ventas"):
+        if f["id"] in por_id:
+            por_id[f["id"]]["cliente"] = f["cliente"] or ""
+    abonos = []
+    for f in con.execute(
+            "SELECT a.*, c.nombre AS cliente, COALESCE(u.nombre, '') AS usuario FROM abonos a"
+            " JOIN clientes c ON c.id = a.cliente_id LEFT JOIN usuarios u ON u.id = a.usuario_id"
+            " ORDER BY a.fecha, a.hora, a.id"):
+        d = date.fromisoformat(f["fecha"])
+        abonos.append({"id": f["id"], "fecha": d, "hora": f["hora"], "semana": _lunes(d), "mes": f["fecha"][:7],
+                       "cliente": f["cliente"], "metodo": f["metodo"], "monto": f["monto"] / 100,
+                       "usuario": f["usuario"], "estado": ANULADA if f["anulado"] else VALIDA})
+    clientes = tienda.clientes()
     detalle = []
     for f in con.execute("SELECT * FROM venta_items ORDER BY venta_id, id"):
         v = por_id.get(f["venta_id"])
@@ -99,14 +112,16 @@ def generar_excel(tienda: Tienda) -> bytes:
     h_sem = libro.add_worksheet("Por semana")
     h_mes = libro.add_worksheet("Por mes")
     h_prod = libro.add_worksheet("Productos")
+    h_fia = libro.add_worksheet("Fiados")
     h_ven = libro.add_worksheet("Ventas")
+    h_abo = libro.add_worksheet("Abonos")
     h_det = libro.add_worksheet("Detalle")
     h_inv = libro.add_worksheet("Inventario")
 
     # ------------------------------------------------------------ Ventas (los datos base)
     tabla(h_ven, [("N° venta", 9), ("Fecha", 11), ("Hora", 7), ("Día", 11), ("Semana (lunes)", 13),
                   ("Mes", 9), ("Vendedor", 16), ("Método", 10), ("Productos", 48), ("Unidades", 9),
-                  ("Total", 11), ("Costo", 11), ("Ganancia", 11), ("Estado", 9)])
+                  ("Total", 11), ("Costo", 11), ("Ganancia", 11), ("Estado", 9), ("Cliente (fiado)", 18)])
     for i, v in enumerate(ventas, start=1):
         r = i + 1                                   # fila de Excel (1 = cabecera)
         t = fmt["anulada"] if v["estado"] == ANULADA else fmt["texto"]
@@ -124,8 +139,30 @@ def generar_excel(tienda: Tienda) -> bytes:
         h_ven.write_number(i, 11, v["costo"], fmt["dinero"])
         h_ven.write_formula(i, 12, f"=K{r}-L{r}", fmt["dinero"], round(v["total"] - v["costo"], 2))
         h_ven.write(i, 13, v["estado"], t)
+        h_ven.write(i, 14, v.get("cliente", ""), fmt["texto"])
     if ventas:
-        h_ven.autofilter(0, 0, len(ventas), 13)
+        h_ven.autofilter(0, 0, len(ventas), 14)
+
+    # ------------------------------------------------------------ Abonos (pagos de fiados)
+    tabla(h_abo, [("N° abono", 9), ("Fecha", 11), ("Hora", 7), ("Semana (lunes)", 13), ("Mes", 9),
+                  ("Cliente", 22), ("Método", 10), ("Monto", 11), ("Recibió", 16), ("Estado", 9)])
+    for i, a in enumerate(abonos, start=1):
+        h_abo.write_number(i, 0, a["id"], fmt["entero"])
+        h_abo.write_datetime(i, 1, datetime.combine(a["fecha"], datetime.min.time()), fmt["fecha"])
+        h_abo.write(i, 2, a["hora"], fmt["texto"])
+        h_abo.write_datetime(i, 3, datetime.combine(a["semana"], datetime.min.time()), fmt["fecha"])
+        h_abo.write(i, 4, a["mes"], fmt["texto"])
+        h_abo.write(i, 5, a["cliente"], fmt["anulada"] if a["estado"] == ANULADA else fmt["texto"])
+        h_abo.write(i, 6, a["metodo"], fmt["texto"])
+        h_abo.write_number(i, 7, a["monto"], fmt["dinero"])
+        h_abo.write(i, 8, a["usuario"], fmt["texto"])
+        h_abo.write(i, 9, a["estado"], fmt["texto"])
+    if abonos:
+        h_abo.autofilter(0, 0, len(abonos), 9)
+    na = max(len(abonos), 1) + 1
+    A = {k: f"Abonos!${c}$2:${c}${na}" for k, c in [("fecha", "B"), ("semana", "D"), ("mes", "E"), ("cliente", "F"),
+                                                    ("monto", "H"), ("estado", "J")]}
+    abonos_validos = [a for a in abonos if a["estado"] == VALIDA]
 
     # rangos que usan las fórmulas (hasta la última fila de datos)
     n = max(len(ventas), 1) + 1
@@ -133,39 +170,47 @@ def generar_excel(tienda: Tienda) -> bytes:
          [("fecha", "B"), ("semana", "E"), ("mes", "F"), ("metodo", "H"), ("total", "K"),
           ("ganancia", "M"), ("estado", "N")]}
 
-    def resumen_de(lista):
+    def resumen_de(lista, abonos_lista=()):
+        por = lambda m: round(sum(v["total"] for v in lista if v["metodo"] == m), 2)
         tot = sum(v["total"] for v in lista)
-        ef = sum(v["total"] for v in lista if v["metodo"] == "Efectivo")
-        return {"n": len(lista), "ef": round(ef, 2), "de": round(tot - ef, 2), "tot": round(tot, 2),
-                "gan": round(sum(v["total"] - v["costo"] for v in lista), 2)}
+        return {"n": len(lista), "ef": por("Efectivo"), "de": por("Deuna"), "fi": por("Fiado"), "tot": round(tot, 2),
+                "gan": round(sum(v["total"] - v["costo"] for v in lista), 2),
+                "ab": round(sum(a["monto"] for a in abonos_lista), 2)}
 
     def hoja_periodo(hoja, titulo_clave, ancho_clave, claves, criterio, escribir_clave, agrupar):
-        """Una fila por periodo con conteo, efectivo, Deuna, total, ganancia y promedio."""
+        """Una fila por periodo: ventas, efectivo, Deuna, fiado, total, ganancia, promedio y abonos."""
         tabla(hoja, [(titulo_clave, ancho_clave), ("Detalle", 22), ("Ventas", 8), ("Efectivo", 12),
-                     ("Deuna", 12), ("Total", 12), ("Ganancia", 12), ("Venta promedio", 12)])
-        grupos = defaultdict(list)
+                     ("Deuna", 12), ("Fiado", 12), ("Total", 12), ("Ganancia", 12), ("Venta promedio", 12),
+                     ("Abonos de fiados cobrados", 13)])
+        grupos, grupos_ab = defaultdict(list), defaultdict(list)
         for v in validas:
             grupos[agrupar(v)].append(v)
+        for a in abonos_validos:
+            grupos_ab[agrupar(a)].append(a)
         for i, clave in enumerate(claves, start=1):
             r = i + 1
-            s = resumen_de(grupos.get(clave, []))
+            s = resumen_de(grupos.get(clave, []), grupos_ab.get(clave, []))
             escribir_clave(hoja, i, clave)
             c = f'{V[criterio]},$A{r},{V["estado"]},"{VALIDA}"'
             hoja.write_formula(i, 2, f"=COUNTIFS({c})", fmt["entero"], s["n"])
             hoja.write_formula(i, 3, f'=SUMIFS({V["total"]},{c},{V["metodo"]},"Efectivo")', fmt["dinero"], s["ef"])
             hoja.write_formula(i, 4, f'=SUMIFS({V["total"]},{c},{V["metodo"]},"Deuna")', fmt["dinero"], s["de"])
-            hoja.write_formula(i, 5, f"=D{r}+E{r}", fmt["dinero"], s["tot"])
-            hoja.write_formula(i, 6, f'=SUMIFS({V["ganancia"]},{c})', fmt["dinero"], s["gan"])
-            hoja.write_formula(i, 7, f"=IF(C{r}>0,F{r}/C{r},0)", fmt["dinero"], s["tot"] / s["n"] if s["n"] else 0)
+            hoja.write_formula(i, 5, f'=SUMIFS({V["total"]},{c},{V["metodo"]},"Fiado")', fmt["dinero"], s["fi"])
+            hoja.write_formula(i, 6, f"=D{r}+E{r}+F{r}", fmt["dinero"], s["tot"])
+            hoja.write_formula(i, 7, f'=SUMIFS({V["ganancia"]},{c})', fmt["dinero"], s["gan"])
+            hoja.write_formula(i, 8, f"=IF(C{r}>0,G{r}/C{r},0)", fmt["dinero"], s["tot"] / s["n"] if s["n"] else 0)
+            hoja.write_formula(i, 9, f'=SUMIFS({A["monto"]},{A[criterio]},$A{r},{A["estado"]},"{VALIDA}")',
+                               fmt["dinero"], s["ab"])
         fin = len(claves) + 1
-        total = resumen_de(validas)
+        total = resumen_de(validas, abonos_validos)
         hoja.write(fin, 0, "Total", fmt["total_txt"])
         hoja.write(fin, 1, "", fmt["total_txt"])
         for col, letra, valor, f_ in [(2, "C", total["n"], "total_ent"), (3, "D", total["ef"], "total_din"),
-                                      (4, "E", total["de"], "total_din"), (5, "F", total["tot"], "total_din"),
-                                      (6, "G", total["gan"], "total_din")]:
+                                      (4, "E", total["de"], "total_din"), (5, "F", total["fi"], "total_din"),
+                                      (6, "G", total["tot"], "total_din"), (7, "H", total["gan"], "total_din"),
+                                      (9, "J", total["ab"], "total_din")]:
             hoja.write_formula(fin, col, f"=SUM({letra}2:{letra}{fin})" if claves else "=0", fmt[f_], valor)
-        hoja.write_formula(fin, 7, f"=IF(C{fin + 1}>0,F{fin + 1}/C{fin + 1},0)", fmt["total_din"],
+        hoja.write_formula(fin, 8, f"=IF(C{fin + 1}>0,G{fin + 1}/C{fin + 1},0)", fmt["total_din"],
                            total["tot"] / total["n"] if total["n"] else 0)
 
     # Por día: todos los días desde la primera venta hasta hoy (los días sin ventas también, en cero)
@@ -227,6 +272,28 @@ def generar_excel(tienda: Tienda) -> bytes:
         h_prod.write_formula(i, 2, f'=SUMIFS({D["subtotal"]},{c})', fmt["dinero"], round(vend, 2))
         h_prod.write_formula(i, 3, f'=SUMIFS({D["ganancia"]},{c})', fmt["dinero"], round(gan, 2))
 
+    # ------------------------------------------------------------ Fiados (quién debe cuánto)
+    tabla(h_fia, [("Cliente", 24), ("Teléfono", 13), ("Llevó fiado", 12), ("Ha abonado", 12), ("Debe", 12),
+                  ("Último movimiento", 16)])
+    c_ventas = f"Ventas!$O$2:$O${n}"
+    for i, cl in enumerate(clientes, start=1):
+        r = i + 1
+        h_fia.write(i, 0, cl.nombre, fmt["texto"])
+        h_fia.write(i, 1, cl.telefono, fmt["texto"])
+        h_fia.write_formula(i, 2, f'=SUMIFS({V["total"]},{c_ventas},$A{r},{V["metodo"]},"Fiado",{V["estado"]},"{VALIDA}")',
+                            fmt["dinero"], cl.fiado / 100)
+        h_fia.write_formula(i, 3, f'=SUMIFS({A["monto"]},{A["cliente"]},$A{r},{A["estado"]},"{VALIDA}")',
+                            fmt["dinero"], cl.abonado / 100)
+        h_fia.write_formula(i, 4, f"=C{r}-D{r}", fmt["alerta"] if cl.saldo > 0 else fmt["dinero"], cl.saldo / 100)
+        h_fia.write(i, 5, cl.ultimo_movimiento, fmt["texto"])
+    ff = len(clientes) + 1
+    h_fia.write(ff, 0, "Total por cobrar", fmt["total_txt"])
+    h_fia.write(ff, 1, "", fmt["total_txt"]); h_fia.write(ff, 5, "", fmt["total_txt"])
+    for col, letra, valor in [(2, "C", sum(c.fiado for c in clientes) / 100), (3, "D", sum(c.abonado for c in clientes) / 100),
+                              (4, "E", sum(c.saldo for c in clientes) / 100)]:
+        h_fia.write_formula(ff, col, f"=SUM({letra}2:{letra}{ff})" if clientes else "=0", fmt["total_din"], valor)
+    por_cobrar_ref = f"Fiados!$E${ff + 1}"
+
     # ------------------------------------------------------------ Inventario (foto del momento)
     tabla(h_inv, [("Producto", 30), ("Categoría", 16), ("Presentación", 14), ("Stock", 8), ("Avisar con", 9),
                   ("Costo", 11), ("Precio", 11), ("Invertido", 12), ("Si se vende todo", 13), ("Estado", 12)])
@@ -282,7 +349,9 @@ def generar_excel(tienda: Tienda) -> bytes:
         h_res.write_formula(fila, 2, f'=SUMIFS({V["total"]},{c})', fmt["grande"], s["tot"])
         h_res.write_formula(fila, 3, f'=SUMIFS({V["ganancia"]},{c})', fmt["grande"], s["gan"])
         h_res.write_formula(fila, 4, f"=IF(B{r}>0,C{r}/B{r},0)", fmt["grande"], s["tot"] / s["n"] if s["n"] else 0)
-    h_res.write(13, 0, "Las ventas anuladas no se cuentan en ningún total. En las demás hojas tienes el detalle por día, semana, mes y producto.", fmt["nota"])
+    h_res.write(13, 0, "Fiados por cobrar", fmt["etiqueta"])
+    h_res.write_formula(13, 2, f"={por_cobrar_ref}", fmt["grande"], sum(c.saldo for c in clientes) / 100)
+    h_res.write(15, 0, "Las ventas anuladas no se cuentan en ningún total. Lo fiado cuenta como vendido; lo que falta cobrar está en la hoja Fiados.", fmt["nota"])
     h_res.activate()
 
     libro.close()

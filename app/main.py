@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .modelos import CATEGORIAS, METODOS_PAGO, Producto, Usuario, Venta
+from .modelos import CATEGORIAS, METODOS_ABONO, METODOS_PAGO, Cliente, Producto, Usuario, Venta
 from .servicios import ErrorTienda, Tienda
 from .usuarios import (DIAS_SESION, Cuentas, ErrorUsuario, crear_token, leer_token,
                        secreto)
@@ -153,10 +153,24 @@ class ItemCarrito(BaseModel):
 
 
 class NuevaVenta(BaseModel):
-    """recibido: dinero que entregó el cliente en efectivo, en centavos"""
+    """recibido: dinero que entregó el cliente en efectivo, en centavos.
+    cliente_id: solo para ventas fiadas."""
     items: list[ItemCarrito]
     metodo: str
     recibido: int | None = None
+    cliente_id: int | None = None
+
+
+class ClienteEntrada(BaseModel):
+    nombre: str
+    telefono: str = ""
+    nota: str = ""
+
+
+class AbonoEntrada(BaseModel):
+    """monto en centavos: $10,00 = 1000"""
+    monto: int = Field(gt=0)
+    metodo: str = "Efectivo"
 
 
 # ---------------------------------------------------------------- servidor
@@ -246,7 +260,7 @@ async def restablecer_clave(usuario_id: int, datos: ClaveNueva, _: Admin):
 # ------------------------------------------------------------------ productos
 @app.get("/api/catalogo", tags=["Productos"])
 async def catalogo():
-    return {"categorias": CATEGORIAS, "metodos_pago": METODOS_PAGO}
+    return {"categorias": CATEGORIAS, "metodos_pago": METODOS_PAGO, "metodos_abono": METODOS_ABONO}
 
 
 @app.get("/api/productos", tags=["Productos"])
@@ -334,7 +348,7 @@ async def vender(datos: NuevaVenta, u: Actual):
     items: dict[int, int] = {}
     for i in datos.items:
         items[i.producto_id] = items.get(i.producto_id, 0) + i.cantidad
-    v = tienda.registrar_venta(items, datos.metodo, datos.recibido, u.id)
+    v = tienda.registrar_venta(items, datos.metodo, datos.recibido, u.id, datos.cliente_id)
     return venta_json(v, u.es_admin)
 
 
@@ -355,7 +369,7 @@ async def anular(venta_id: int, u: Admin):
 @app.get("/api/resumen", tags=["Reportes"])
 async def resumen(_: Admin, desde: str | None = None, hasta: str | None = None):
     r = tienda.resumen(desde or hoy(), hasta)
-    return asdict(r) | {"promedio": r.promedio}
+    return asdict(r) | {"promedio": r.promedio, "por_cobrar": tienda.total_por_cobrar()}
 
 
 @app.get("/api/resumen/dias", tags=["Reportes"])
@@ -372,6 +386,54 @@ async def ventas_por_hora(desde: str, hasta: str, _: Admin):
 async def fecha_de_hoy(_: Actual):
     """La fecha de hoy en Ecuador, para que la app no dependa del reloj del celular."""
     return {"hoy": hoy()}
+
+
+# -------------------------------------------------------------------- fiados
+def cliente_json(c: Cliente) -> dict:
+    return asdict(c) | {"saldo": c.saldo}
+
+
+@app.get("/api/clientes", tags=["Fiados"])
+async def listar_clientes(_: Actual, buscar: str = ""):
+    """Clientes con lo que deben, primero los que más deben."""
+    lista = tienda.clientes(buscar)
+    return {"clientes": [cliente_json(c) for c in lista], "por_cobrar": sum(c.saldo for c in lista)}
+
+
+@app.post("/api/clientes", tags=["Fiados"], status_code=201)
+async def crear_cliente(datos: ClienteEntrada, _: Actual):
+    return cliente_json(tienda.guardar_cliente(Cliente(**datos.model_dump())))
+
+
+@app.get("/api/clientes/{cliente_id}", tags=["Fiados"])
+async def ver_cliente(cliente_id: int, _: Actual):
+    """El cliente con su cuenta: lo que llevó fiado y lo que ha abonado."""
+    c = tienda.cliente(cliente_id)
+    if c is None:
+        raise HTTPException(404, "Ese cliente no existe.")
+    return cliente_json(c) | {"cuenta": tienda.cuenta_cliente(cliente_id)}
+
+
+@app.put("/api/clientes/{cliente_id}", tags=["Fiados"])
+async def editar_cliente(cliente_id: int, datos: ClienteEntrada, _: Actual):
+    return cliente_json(tienda.guardar_cliente(Cliente(**datos.model_dump(), id=cliente_id)))
+
+
+@app.delete("/api/clientes/{cliente_id}", tags=["Fiados"])
+async def eliminar_cliente(cliente_id: int, _: Admin):
+    tienda.eliminar_cliente(cliente_id)
+    return {"ok": True}
+
+
+@app.post("/api/clientes/{cliente_id}/abonos", tags=["Fiados"], status_code=201)
+async def abonar(cliente_id: int, datos: AbonoEntrada, u: Actual):
+    """Registra un pago del cliente (todo o una parte de lo que debe)."""
+    return cliente_json(tienda.registrar_abono(cliente_id, datos.monto, datos.metodo, u.id))
+
+
+@app.post("/api/abonos/{abono_id}/anular", tags=["Fiados"])
+async def anular_abono(abono_id: int, _: Admin):
+    return cliente_json(tienda.anular_abono(abono_id))
 
 
 @app.get("/api/stock-bajo", tags=["Reportes"])

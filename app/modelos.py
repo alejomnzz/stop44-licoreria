@@ -9,7 +9,8 @@ CATEGORIAS = [
     "Ginebra", "Gaseosas y aguas", "Energizantes", "Snacks", "Cigarrillos",
     "Hielo", "Otros",
 ]
-METODOS_PAGO = ["Efectivo", "Deuna"]
+METODOS_PAGO = ["Efectivo", "Deuna", "Fiado"]
+METODOS_ABONO = ["Efectivo", "Deuna"]          # con qué puede pagar un cliente lo que debe
 ROLES = ["admin", "vendedor"]
 
 
@@ -90,6 +91,8 @@ class Venta:
     anulada: bool = False
     usuario_id: int | None = None
     vendedor: str = ""                 # nombre de quien vendió (para mostrar)
+    cliente_id: int | None = None      # solo si fue fiado
+    cliente: str = ""
     id: int | None = None
 
     @property
@@ -116,8 +119,26 @@ class ResumenDia:
     ganancia: int = 0
     por_metodo: dict[str, int] = field(default_factory=dict)
     por_vendedor: dict[str, int] = field(default_factory=dict)
+    abonos: dict[str, int] = field(default_factory=dict)      # pagos de fiados recibidos, por método
     productos: list[ProductoVendido] = field(default_factory=list)
 
     @property
     def promedio(self) -> int:
         return round(self.total / self.num_ventas) if self.num_ventas else 0
+
+
+@dataclass
+class Cliente:
+    nombre: str
+    telefono: str = ""
+    nota: str = ""
+    creado: str = ""
+    fiado: int = 0          # todo lo que ha llevado fiado (centavos)
+    abonado: int = 0        # todo lo que ha pagado
+    ultimo_movimiento: str = ""
+    id: int | None = None
+
+    @property
+    def saldo(self) -> int:
+        """Lo que debe hoy."""
+        return self.fiado - self.abonado

@@ -171,7 +171,7 @@ img { max-width: 100%; display: block; }
 .precio { font-family: var(--letra-titulo); color: var(--rojo); -webkit-text-stroke: 0.4px var(--rojo-oscuro); }
 
 /* ---------- Avisos (toast) ---------- */
-.avisos { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
+.avisos { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 58; display: flex; flex-direction: column; gap: 8px; width: min(92vw, 420px); pointer-events: none; }
 .aviso {
   background: var(--negro); color: var(--blanco); border: 2px solid var(--blanco);
   border-radius: 10px; padding: 12px 16px; font-weight: 600; box-shadow: var(--sombra);
@@ -185,7 +185,7 @@ img { max-width: 100%; display: block; }
 
 /* ---------- Ventanas (modal) ---------- */
 .fondo-modal {
-  position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, 0.6);
+  position: fixed; inset: 0; z-index: 55; background: rgba(0, 0, 0, 0.6);
   display: flex; align-items: flex-end; justify-content: center; padding: 12px;
   animation: oscurece 0.2s;
 }
@@ -553,3 +553,49 @@ button.cifra { cursor: pointer; }
 .respaldo { margin-top: 18px; }
 .respaldo p { margin: 0 0 12px; line-height: 1.5; font-size: 14px; }
 .botones-encabezado { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- Fiados ---------- */
+:root { --dorado: #e0a526; }
+.pago-fiado { background: var(--dorado); border-left: 2px solid var(--negro); }
+.punto.fiado { background: var(--dorado); }
+.barra-pagos span + span { border-left: 2px solid var(--negro); }
+.etiqueta.dorada { background: var(--dorado); color: #000; }
+.abonos-dia { margin-top: 10px; font-size: 15px; }
+.cifra.alerta-suave { background: var(--dorado); color: #000; text-decoration: none; }
+.cifra.alerta-suave small { color: #3d2c00; }
+.cifra.alerta-suave b { color: #000; }
+.metodos { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
+
+.lista-clientes { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+.cliente { background: var(--blanco); border: var(--borde); border-radius: 14px; box-shadow: var(--sombra); overflow: hidden; }
+.cliente-cuerpo { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 12px; align-items: center; width: 100%; padding: 12px 14px; background: none; border: 0; text-align: left; cursor: pointer; }
+.cliente-datos { display: flex; flex-direction: column; min-width: 0; }
+.cliente-datos b { font-size: 16px; font-weight: 800; }
+.cliente-datos small { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cliente-saldo { display: flex; flex-direction: column; align-items: flex-end; }
+.cliente-saldo small { font-size: 12px; color: var(--gris); }
+.cliente-saldo .precio { font-size: 22px; }
+.cliente-acciones { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; padding: 0 14px 12px; }
+.cliente.al-dia { opacity: 0.8; }
+
+.cuenta-cabeza { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.cuenta-cabeza h2 { margin: 0; }
+.cuenta-saldo { display: flex; flex-direction: column; background: var(--negro); color: var(--blanco); border-radius: 12px; padding: 12px 16px; }
+.cuenta-saldo small { color: #bdbdbd; }
+.cuenta-saldo b { font-family: var(--letra-titulo); font-weight: 400; font-size: 32px; color: #7fe0a3; }
+.cuenta-saldo.debe b { color: #ff6b74; }
+.cuenta-saldo .tenue { color: #bdbdbd; font-size: 13px; }
+.cuenta-botones { justify-content: flex-start; margin: 14px 0 6px; }
+.cuenta-historial .mov { font-size: 15px; }
+.cuenta-historial li { grid-template-columns: 86px 1fr auto; }
+.cuenta-historial li.anulado { opacity: 0.55; text-decoration: line-through; }
+.grande-entrada { font-family: var(--letra-titulo); font-size: 26px; }
+
+/* Fiado en Vender */
+.elegir-cliente { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.clientes-rapidos { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.cliente-opcion { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--blanco); border: 2px solid var(--negro); border-radius: 10px; cursor: pointer; font-weight: 700; text-align: left; }
+.cliente-opcion small { color: var(--rojo); font-weight: 700; }
+.cliente-opcion:hover { background: #f4f3ef; }
+.cliente-elegido { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; margin-bottom: 10px; background: #fff7e0; border: 2px solid var(--negro); border-radius: 10px; }
+.cliente-elegido > div { display: flex; flex-direction: column; }

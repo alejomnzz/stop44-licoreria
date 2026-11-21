@@ -18,7 +18,7 @@ from app.main import app, tienda  # noqa: E402
 
 @pytest.fixture
 def cliente():
-    for tabla in ("movimientos", "fotos", "venta_items", "ventas", "productos", "usuarios"):
+    for tabla in ("movimientos", "fotos", "venta_items", "abonos", "ventas", "clientes", "productos", "usuarios"):
         tienda.con.execute(f"DELETE FROM {tabla}")
     tienda.con.commit()
     return TestClient(app)
@@ -172,10 +172,45 @@ def test_reporte_excel(cliente):
     r = cliente.get("/api/reporte")
     assert r.status_code == 200 and "spreadsheetml" in r.headers["content-type"]
     libro = openpyxl.load_workbook(io.BytesIO(r.content), data_only=True)   # valores ya calculados
-    assert libro.sheetnames == ["Resumen", "Por día", "Por semana", "Por mes", "Productos", "Ventas", "Detalle", "Inventario"]
+    assert libro.sheetnames == ["Resumen", "Por día", "Por semana", "Por mes", "Productos", "Fiados",
+                                "Ventas", "Abonos", "Detalle", "Inventario"]
     hoy = libro["Resumen"]
     assert hoy["A9"].value == "Hoy" and hoy["B9"].value == 2            # la anulada no cuenta
     assert hoy["C9"].value == 37.5                                      # 3 × $12,50
     dia = libro["Por día"]
-    assert (dia["D2"].value, dia["E2"].value, dia["F2"].value) == (25.0, 12.5, 37.5)
+    assert (dia["D2"].value, dia["E2"].value, dia["F2"].value, dia["G2"].value) == (25.0, 12.5, 0, 37.5)
     assert libro["Ventas"].max_row == 4 and libro["Ventas"]["N4"].value == "Anulada"
+
+
+def test_fiados_por_la_api(cliente):
+    crear_admin(cliente)
+    p = crear_producto(cliente)
+    juan = cliente.post("/api/clientes", json={"nombre": "Juan", "telefono": "0991234567"}).json()
+    r = cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 2}],
+                                          "metodo": "Fiado", "cliente_id": juan["id"]})
+    assert r.status_code == 201 and r.json()["cliente"] == "Juan"
+    assert cliente.get("/api/clientes").json()["por_cobrar"] == 2500
+    r = cliente.post(f"/api/clientes/{juan['id']}/abonos", json={"monto": 1000, "metodo": "Deuna"})
+    assert r.json()["saldo"] == 1500
+    cuenta = cliente.get(f"/api/clientes/{juan['id']}").json()["cuenta"]
+    assert [m["tipo"] for m in cuenta] == ["abono", "fiado"]
+    assert cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 1}],
+                                             "metodo": "Fiado"}).status_code == 400   # sin cliente
+    resumen = cliente.get("/api/resumen").json()
+    assert resumen["abonos"] == {"Deuna": 1000} and resumen["por_cobrar"] == 1500
+
+
+def test_reporte_excel_con_fiados(cliente):
+    import io
+    import openpyxl
+    crear_admin(cliente)
+    p = crear_producto(cliente)
+    juan = cliente.post("/api/clientes", json={"nombre": "Juan"}).json()
+    cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 2}], "metodo": "Fiado", "cliente_id": juan["id"]})
+    cliente.post(f"/api/clientes/{juan['id']}/abonos", json={"monto": 1000, "metodo": "Efectivo"})
+    libro = openpyxl.load_workbook(io.BytesIO(cliente.get("/api/reporte").content), data_only=True)
+    dia = libro["Por día"]
+    assert (dia["F2"].value, dia["G2"].value, dia["J2"].value) == (25.0, 25.0, 10.0)   # fiado, total, abonos
+    fiados = libro["Fiados"]
+    assert [fiados["A2"].value, fiados["C2"].value, fiados["D2"].value, fiados["E2"].value] == ["Juan", 25.0, 10.0, 15.0]
+    assert libro["Resumen"]["C14"].value == 15.0

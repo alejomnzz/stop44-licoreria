@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS productos (
     activo       INTEGER NOT NULL DEFAULT 1             -- 0 = eliminado
 );
 
+-- Clientes que llevan fiado
+CREATE TABLE IF NOT EXISTS clientes (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre   TEXT NOT NULL,
+    telefono TEXT NOT NULL DEFAULT '',
+    nota     TEXT NOT NULL DEFAULT '',
+    creado   TEXT NOT NULL,
+    activo   INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE TABLE IF NOT EXISTS ventas (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     fecha       TEXT    NOT NULL,                      -- AAAA-MM-DD
@@ -45,9 +55,24 @@ CREATE TABLE IF NOT EXISTS ventas (
     costo_total INTEGER NOT NULL DEFAULT 0,
     recibido    INTEGER,                               -- solo en efectivo
     anulada     INTEGER NOT NULL DEFAULT 0,
-    usuario_id  INTEGER REFERENCES usuarios(id)        -- quién hizo la venta
+    usuario_id  INTEGER REFERENCES usuarios(id),       -- quién hizo la venta
+    cliente_id  INTEGER REFERENCES clientes(id)        -- solo en ventas fiadas
 );
 CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON ventas(fecha);
+
+-- Pagos que hacen los clientes para bajar lo que deben
+CREATE TABLE IF NOT EXISTS abonos (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id INTEGER NOT NULL REFERENCES clientes(id),
+    fecha      TEXT    NOT NULL,                       -- AAAA-MM-DD
+    hora       TEXT    NOT NULL,                       -- HH:MM
+    monto      INTEGER NOT NULL CHECK (monto > 0),     -- centavos
+    metodo     TEXT    NOT NULL,                       -- Efectivo o Deuna
+    usuario_id INTEGER REFERENCES usuarios(id),        -- quién lo recibió
+    anulado    INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_abonos_cliente ON abonos(cliente_id);
+CREATE INDEX IF NOT EXISTS idx_abonos_fecha ON abonos(fecha);
 
 CREATE TABLE IF NOT EXISTS venta_items (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,6 +131,15 @@ def _abrir(destino: str) -> sqlite3.Connection:
     return con
 
 
+def _actualizar(con: sqlite3.Connection) -> None:
+    """Migraciones: pone al día una base de datos creada con una versión anterior de la app."""
+    columnas = {f[1] for f in con.execute("PRAGMA table_info(ventas)")}
+    if "cliente_id" not in columnas:          # agregado con los fiados
+        con.execute("ALTER TABLE ventas ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas(cliente_id)")
+    con.commit()
+
+
 def conectar(ruta: str | Path | None = None) -> sqlite3.Connection:
     """Abre UNA conexión y crea las tablas si no existen (útil en pruebas y scripts).
 
@@ -113,6 +147,7 @@ def conectar(ruta: str | Path | None = None) -> sqlite3.Connection:
     """
     con = _abrir(":memory:" if ruta == ":memory:" else str(ruta or ruta_por_defecto()))
     con.executescript(ESQUEMA)
+    _actualizar(con)
     return con
 
 

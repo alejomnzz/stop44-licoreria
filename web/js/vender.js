@@ -5,9 +5,11 @@
 import { api } from "./api.js";
 import { $, esc, dinero, aCentavos, avisar, celebrar, cargando } from "./ui.js";
 import { imagenProducto } from "./dibujos.js";
+import { formularioCliente } from "./fiados.js";
 
 const BILLETES = [500, 1000, 2000, 5000];    // $5, $10, $20, $50 en centavos
 const ICONO_EFECTIVO = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>';
+const ICONO_FIADO = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 3h12a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 2-2z"/><path d="M9 8h6M9 12h4"/></svg>';
 const ICONO_DEUNA = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3M21 14v7h-4M14 18v3"/></svg>';
 
 // El carrito vive aquí para no perderse al cambiar de pantalla
@@ -19,6 +21,9 @@ const estado = {
   metodo: "Efectivo",
   recibido: "",
   cobrando: false,
+  clientes: null,          // se cargan la primera vez que se elige Fiado
+  clienteId: null,
+  buscarCliente: "",
 };
 
 let raiz = null;
@@ -185,7 +190,7 @@ function pintarCarrito(sacudir = false) {
     <ul class="lineas">${lineas}</ul>
     <div class="carrito-total"><span>Total</span><b class="precio">${dinero(t)}</b></div>
     <div class="metodos" role="radiogroup" aria-label="Método de pago">
-      ${["Efectivo", "Deuna"].map((m) => `<button class="metodo ${estado.metodo === m ? "activo" : ""}" data-metodo="${m}" role="radio" aria-checked="${estado.metodo === m}">${m === "Efectivo" ? ICONO_EFECTIVO : ICONO_DEUNA}${m}</button>`).join("")}
+      ${["Efectivo", "Deuna", "Fiado"].map((m) => `<button class="metodo ${estado.metodo === m ? "activo" : ""}" data-metodo="${m}" role="radio" aria-checked="${estado.metodo === m}">${{ Efectivo: ICONO_EFECTIVO, Deuna: ICONO_DEUNA, Fiado: ICONO_FIADO }[m]}${m}</button>`).join("")}
     </div>
     ${efectivo ? `
       <label class="campo">Con cuánto paga
@@ -195,11 +200,48 @@ function pintarCarrito(sacudir = false) {
         ${BILLETES.filter((b) => b > t).slice(0, 3).map((b) => `<button class="chip" data-billete="${b}">${dinero(b)}</button>`).join("")}
         <button class="chip" data-billete="${t}">Exacto</button>
       </div>
-      <p class="vueltas" id="vueltas">${textoVueltas()}</p>` : `
+      <p class="vueltas" id="vueltas">${textoVueltas()}</p>` : estado.metodo === "Fiado" ? selectorCliente() : `
       <p class="tenue nota-deuna">Muestra el QR de Deuna y confirma cuando veas el pago.</p>`}
     <button class="btn btn-rojo btn-ancho cobrar" id="cobrar" ${estado.cobrando ? "disabled" : ""}>
-      ${estado.cobrando ? "Guardando…" : `Cobrar ${dinero(t)}`}
+      ${estado.cobrando ? "Guardando…" : textoBotonCobrar(t)}
     </button>`;
+}
+
+function textoBotonCobrar(t) {
+  if (estado.metodo !== "Fiado") return `Cobrar ${dinero(t)}`;
+  const c = clienteElegido();
+  return c ? `Fiar ${dinero(t)} a ${esc(c.nombre.split(" ")[0])}` : `Fiar ${dinero(t)}`;
+}
+
+const clienteElegido = () => estado.clientes?.find((c) => c.id === estado.clienteId) || null;
+
+// Al fiar: elegir el cliente (o crearlo ahí mismo)
+function selectorCliente() {
+  if (estado.clientes === null) return `<p class="tenue">Cargando clientes…</p>`;
+  const c = clienteElegido();
+  if (c) {
+    return `<div class="cliente-elegido">
+      <div><b>${esc(c.nombre)}</b><small class="tenue">${c.saldo > 0 ? `Ya debe ${dinero(c.saldo)}` : "No debe nada"}</small></div>
+      <button class="enlace" id="cambiar-cliente">Cambiar</button>
+    </div>`;
+  }
+  const q = sinTildes(estado.buscarCliente.trim());
+  const lista = estado.clientes.filter((x) => !q || sinTildes(x.nombre).includes(q)).slice(0, 6);
+  return `<div class="elegir-cliente">
+    <label class="campo">¿A quién se le fía?
+      <input id="buscar-cliente-venta" placeholder="Buscar cliente" value="${esc(estado.buscarCliente)}" autocomplete="off">
+    </label>
+    <ul class="clientes-rapidos">${lista.map((x) => `
+      <li><button class="cliente-opcion" data-cliente="${x.id}"><span>${esc(x.nombre)}</span>${x.saldo > 0 ? `<small>debe ${dinero(x.saldo)}</small>` : ""}</button></li>`).join("")}
+    </ul>
+    <button class="btn btn-chico" id="nuevo-cliente-venta">+ Nuevo cliente</button>
+  </div>`;
+}
+
+async function cargarClientes() {
+  try { estado.clientes = (await api.get("/api/clientes")).clientes; }
+  catch (e) { estado.clientes = []; avisar(e.message, "error"); }
+  if (raiz.isConnected) pintarCarrito();
 }
 
 function textoVueltas() {
@@ -220,6 +262,9 @@ async function cobrar() {
   const efectivo = estado.metodo === "Efectivo";
   const recibido = efectivo ? (aCentavos(estado.recibido) || t) : null;
   if (efectivo && recibido < t) { avisar(`Faltan ${dinero(t - recibido)}.`, "error"); return; }
+  const fiado = estado.metodo === "Fiado";
+  const cliente = clienteElegido();
+  if (fiado && !cliente) { avisar("Elige a qué cliente se le fía.", "error"); return; }
 
   estado.cobrando = true;
   pintarCarrito();
@@ -228,13 +273,21 @@ async function cobrar() {
       items: [...estado.carrito].map(([producto_id, cantidad]) => ({ producto_id, cantidad })),
       metodo: estado.metodo,
       recibido,
+      cliente_id: fiado ? cliente.id : null,
     });
     estado.carrito.clear();
     estado.recibido = "";
     estado.metodo = "Efectivo";
     estado.buscar = "";
-    const detalle = venta.vueltas ? `${dinero(venta.total)} · Vueltas ${dinero(venta.vueltas)}` : `${dinero(venta.total)} · ${venta.metodo}`;
-    celebrar("Venta registrada", detalle, venta.vueltas ? 2600 : 1700);
+    estado.clienteId = null;
+    estado.buscarCliente = "";
+    estado.clientes = null;        // la próxima vez se cargan con el saldo nuevo
+    if (fiado) {
+      celebrar("Fiado registrado", `${cliente.nombre.split(" ")[0]} ahora debe ${dinero(cliente.saldo + venta.total)}`, 2400);
+    } else {
+      const detalle = venta.vueltas ? `${dinero(venta.total)} · Vueltas ${dinero(venta.vueltas)}` : `${dinero(venta.total)} · ${venta.metodo}`;
+      celebrar("Venta registrada", detalle, venta.vueltas ? 2600 : 1700);
+    }
     await mostrarVender(raiz);          // recarga el stock actualizado
     const bajos = estado.productos.filter((p) => venta.items.some((i) => i.producto_id === p.id) && p.stock_bajo);
     if (bajos.length) setTimeout(() => avisar(`Quedan pocos: ${bajos.map((p) => `${p.nombre} (${p.stock})`).join(", ")}`), 1800);
@@ -290,7 +343,24 @@ function conectarEventos() {
     if (e.target.closest("#vaciar")) { estado.carrito.clear(); estado.recibido = ""; pintarProductos(); pintarCarrito(); return; }
 
     const metodo = e.target.closest("[data-metodo]");
-    if (metodo) { estado.metodo = metodo.dataset.metodo; pintarCarrito(); return; }
+    if (metodo) {
+      estado.metodo = metodo.dataset.metodo;
+      pintarCarrito();
+      if (estado.metodo === "Fiado" && estado.clientes === null) cargarClientes();
+      return;
+    }
+
+    const elegido = e.target.closest("[data-cliente]");
+    if (elegido) { estado.clienteId = Number(elegido.dataset.cliente); pintarCarrito(); return; }
+    if (e.target.closest("#cambiar-cliente")) { estado.clienteId = null; pintarCarrito(); return; }
+    if (e.target.closest("#nuevo-cliente-venta")) {
+      formularioCliente(null, (nuevo) => {
+        estado.clientes = [...(estado.clientes || []), nuevo];
+        estado.clienteId = nuevo.id;
+        pintarCarrito();
+      });
+      return;
+    }
 
     const billete = e.target.closest("[data-billete]");
     if (billete) { estado.recibido = (Number(billete.dataset.billete) / 100).toFixed(2).replace(".", ","); pintarCarrito(); return; }
@@ -299,6 +369,14 @@ function conectarEventos() {
   });
 
   caja.addEventListener("input", (e) => {
+    if (e.target.id === "buscar-cliente-venta") {
+      estado.buscarCliente = e.target.value;
+      const caja = e.target.closest(".elegir-cliente");
+      const nueva = document.createElement("div");
+      nueva.innerHTML = selectorCliente();
+      caja.querySelector(".clientes-rapidos").replaceWith(nueva.querySelector(".clientes-rapidos"));
+      return;
+    }
     if (e.target.id === "recibido") {
       estado.recibido = e.target.value;
       $("#vueltas", raiz).innerHTML = textoVueltas();

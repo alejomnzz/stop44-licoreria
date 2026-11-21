@@ -16,3 +16,4 @@ datos/
 # Variables secretas (clave de sesión, etc.)
 .env
 .secreto
+Claude outputs/

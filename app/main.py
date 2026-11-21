@@ -11,7 +11,6 @@ from __future__ import annotations
 import base64
 import binascii
 import os
-import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Annotated
@@ -27,10 +26,6 @@ from .usuarios import (DIAS_SESION, Cuentas, ErrorUsuario, crear_token, leer_tok
                        secreto)
 from .utils import hoy
 
-# Las fechas de las ventas van en hora de Ecuador, aunque el servidor esté en otro país
-os.environ.setdefault("TZ", "America/Guayaquil")
-if hasattr(time, "tzset"):
-    time.tzset()
 
 COOKIE = "stop44_sesion"
 CARPETA_WEB = Path(__file__).resolve().parent.parent / "web"

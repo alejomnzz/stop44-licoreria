@@ -6,9 +6,15 @@ de redondeo: $12,50 se guarda como 1250.
 
 from __future__ import annotations
 
+import os
 import re
 import unicodedata
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
+
+# Hora de la tienda (Ecuador). Se calcula aquí, sin depender de la hora del
+# computador o del servidor: así funciona igual en Windows, Linux o en internet.
+ZONA = ZoneInfo(os.getenv("STOP44_ZONA", "America/Guayaquil"))
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
@@ -48,8 +54,13 @@ def normalizar(texto: str | None) -> str:
     return "".join(c for c in t if unicodedata.category(c) != "Mn").lower()
 
 
+def ahora() -> datetime:
+    """Fecha y hora actuales en Ecuador (sin zona adjunta, para guardarlas como texto)."""
+    return datetime.now(ZONA).replace(tzinfo=None)
+
+
 def hoy() -> str:
-    return date.today().isoformat()
+    return ahora().date().isoformat()
 
 
 def sumar_dias(fecha: str, dias: int) -> str:
@@ -65,6 +76,3 @@ def fecha_corta(fecha: str) -> str:
     d = date.fromisoformat(fecha)
     return f"{d.day:02d}/{d.month:02d}/{d.year}"
 
-
-def ahora() -> datetime:
-    return datetime.now()

@@ -1,12 +1,11 @@
 """Pruebas de la lógica del negocio. Ejecutar con:  pytest"""
 
-from datetime import datetime
-
 import pytest
 
 from app.modelos import Producto
 from app.servicios import ErrorTienda, StockInsuficiente, Tienda
 from app.utils import a_centavos, dinero
+from app.utils import hoy as hoy_ecuador
 
 
 @pytest.fixture
@@ -81,7 +80,7 @@ def test_resumen_y_cierre(tienda):
     agua, cerv = tienda.productos("aguardiente")[0], tienda.productos("cerveza")[0]
     tienda.registrar_venta({agua.id: 1}, "Efectivo")
     tienda.registrar_venta({cerv.id: 30}, "Deuna")
-    hoy = datetime.now().date().isoformat()
+    hoy = hoy_ecuador()
     r = tienda.resumen(hoy)
     assert r.num_ventas == 2 and r.total == 1250 + 3750
     assert r.por_metodo == {"Deuna": 3750, "Efectivo": 1250}
@@ -132,3 +131,14 @@ def test_kardex_registra_movimientos(tienda):
     tipos = [r["tipo"] for r in tienda.con.execute(
         "SELECT tipo FROM movimientos WHERE producto_id = ? ORDER BY id", (agua.id,))]
     assert tipos == ["inicial", "entrada", "venta", "anulacion"]
+
+
+def test_fecha_en_hora_de_ecuador(tienda):
+    """La venta se guarda con la fecha y hora de Ecuador, sin importar la hora del computador."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    ecuador = datetime.now(ZoneInfo("America/Guayaquil"))
+    agua = tienda.productos("aguardiente")[0]
+    v = tienda.registrar_venta({agua.id: 1}, "Deuna")
+    assert v.fecha == ecuador.date().isoformat()
+    assert abs(int(v.hora[:2]) - ecuador.hour) in (0, 1, 23)

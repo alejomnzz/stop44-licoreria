@@ -20,6 +20,7 @@ import bcrypt
 import jwt
 
 from .modelos import ROLES, Usuario
+from .utils import ahora
 
 DIAS_SESION = 30
 _USUARIO_VALIDO = re.compile(r"^[a-z0-9._ñ]{3,30}$")
@@ -110,8 +111,9 @@ class Cuentas:
         try:
             with self.con:
                 cur = self.con.execute(
-                    "INSERT INTO usuarios (nombre, usuario, clave_hash, rol, estado) VALUES (?, ?, ?, ?, ?)",
-                    (nombre, usuario, cifrar(clave), rol, estado))
+                    "INSERT INTO usuarios (nombre, usuario, clave_hash, rol, estado, creado)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (nombre, usuario, cifrar(clave), rol, estado, ahora().strftime("%Y-%m-%d %H:%M:%S")))
         except sqlite3.IntegrityError:
             raise ErrorUsuario("Ese usuario ya existe. Prueba con otro.") from None
         return self.obtener(cur.lastrowid)

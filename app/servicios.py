@@ -14,7 +14,7 @@ from pathlib import Path
 
 from . import db
 from .modelos import METODOS_PAGO, ItemVenta, Producto, ProductoVendido, ResumenDia, Venta
-from .utils import dinero, fecha_corta, normalizar, sumar_dias
+from .utils import ahora, dinero, fecha_corta, normalizar, sumar_dias
 
 
 class ErrorTienda(Exception):
@@ -45,7 +45,7 @@ class Tienda:
 
     # ------------------------------------------------------------------ util
     def _ahora(self) -> datetime:
-        return datetime.now()
+        return ahora()          # hora de Ecuador
 
     @staticmethod
     def _producto(fila: sqlite3.Row) -> Producto:

@@ -420,3 +420,53 @@ button.cifra { cursor: pointer; }
 .historial li { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 2px dashed #ddd; font-size: 14px; }
 .historial small { display: block; font-size: 12px; }
 .mov { font-family: var(--letra-titulo); font-size: 20px; text-align: center; }
+
+/* ---------- Ventas del día ---------- */
+.selector-dia { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.selector-dia .btn { width: 44px; height: 44px; padding: 0; font-size: 26px; }
+.dia-actual {
+  position: relative; display: flex; align-items: center; justify-content: center; min-width: 210px; height: 44px;
+  background: var(--negro); color: var(--blanco); border-radius: 10px; padding: 0 16px; cursor: pointer;
+}
+.dia-actual b { font-family: var(--letra-titulo); font-weight: 400; font-size: 18px; }
+.dia-actual input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.cifra.grande { grid-column: span 2; }
+.cifra.grande b { font-size: 34px; color: #ff6b74; }
+.cifra .ganancia { color: #7fe0a3; }
+@media (min-width: 760px) { .cifra.grande { grid-column: auto; } }
+.caja { margin-bottom: 16px; }
+.barra-pagos { display: flex; height: 22px; border: 2px solid var(--negro); border-radius: 8px; overflow: hidden; margin: 4px 0 10px; }
+.pago-efectivo { background: var(--verde); }
+.pago-deuna { background: var(--rojo); border-left: 2px solid var(--negro); }
+.pagos-detalle { display: flex; gap: 20px; flex-wrap: wrap; font-size: 15px; }
+.pagos-detalle b { margin-left: 4px; }
+.punto { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; border: 1.5px solid var(--negro); vertical-align: -1px; }
+.punto.efectivo { background: var(--verde); }
+.punto.deuna { background: var(--rojo); }
+.en-caja { margin-top: 12px; padding-top: 10px; border-top: 2px dashed #ddd; font-size: 15px; }
+.en-caja b { font-family: var(--letra-titulo); font-weight: 400; font-size: 19px; color: var(--verde); }
+.dos-columnas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); align-items: start; margin-bottom: 8px; }
+.top { margin: 0; padding: 0; list-style: none; counter-reset: top; }
+.top li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; padding: 7px 0; border-bottom: 2px dashed #eee; font-size: 14px; counter-increment: top; }
+.top li:last-child { border-bottom: 0; }
+.top li span:first-child::before { content: counter(top) ". "; font-weight: 800; color: var(--rojo); }
+.lista-titulo { margin-top: 18px; }
+.lista-ventas { display: flex; flex-direction: column; gap: 10px; }
+.venta { background: var(--blanco); border: var(--borde); border-radius: 12px; box-shadow: var(--sombra); overflow: hidden; }
+.venta-cabeza {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  width: 100%; background: none; border: 0; padding: 12px 14px; text-align: left; cursor: pointer;
+}
+.venta-hora { font-family: var(--letra-titulo); font-size: 16px; }
+.venta-items { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.venta-total { display: flex; align-items: center; gap: 8px; }
+.venta-total .precio { font-size: 20px; }
+.venta.abierta .venta-cabeza { background: #f4f3ef; }
+.venta-detalle { padding: 4px 14px 14px; border-top: 2px dashed #ddd; }
+.venta-detalle ul { list-style: none; padding: 0; margin: 8px 0; }
+.venta-detalle li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; padding: 4px 0; font-size: 14px; }
+.venta-detalle p { font-size: 13px; margin-bottom: 10px; }
+.anular { color: var(--rojo); border-color: var(--rojo); box-shadow: 0 3px 0 var(--rojo); }
+.venta.anulada { opacity: 0.65; }
+.venta.anulada .venta-items, .venta.anulada .precio { text-decoration: line-through; }
+.cierre-texto { white-space: pre-wrap; font-family: var(--letra); font-size: 14px; line-height: 1.5; background: #f4f3ef; border: 2px solid var(--negro); border-radius: 10px; padding: 14px; max-height: 50vh; overflow: auto; }

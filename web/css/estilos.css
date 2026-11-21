@@ -545,3 +545,8 @@ button.cifra { cursor: pointer; }
 .usuario.inactivo { opacity: 0.7; }
 .peligro { color: var(--rojo); }
 .ayuda-usuarios { margin-top: 18px; line-height: 1.5; font-size: 14px; }
+
+/* ---------- Instalar app ---------- */
+.instalar { border-color: var(--blanco); background: var(--rojo); color: var(--blanco); box-shadow: 0 3px 0 var(--rojo-oscuro); }
+.instalar[hidden] { display: none; }
+@media (display-mode: standalone) { .instalar { display: none; } }

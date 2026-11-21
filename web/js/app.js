@@ -143,3 +143,36 @@ async function iniciar() {
 window.addEventListener("hashchange", () => { if (sesion) mostrar(); });
 iniciar();
 
+// ---------- Instalar como app ----------
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch(() => {}));
+}
+
+// Android y computador: el navegador ofrece instalar; mostramos nuestro propio botón
+let pedidoInstalar = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  pedidoInstalar = e;
+  $("#instalar").hidden = false;
+});
+$("#instalar").addEventListener("click", async () => {
+  if (!pedidoInstalar) return;
+  pedidoInstalar.prompt();
+  const { outcome } = await pedidoInstalar.userChoice;
+  if (outcome === "accepted") $("#instalar").hidden = true;
+  pedidoInstalar = null;
+});
+window.addEventListener("appinstalled", () => { $("#instalar").hidden = true; celebrar("App instalada", "Búscala en tu pantalla de inicio", 1800); });
+
+// iPhone: Safari no tiene botón de instalar, así que se explica una sola vez
+const esIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const yaInstalada = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+if (esIphone && !yaInstalada) {
+  let visto = false;
+  try { visto = localStorage.getItem("stop44_aviso_iphone") === "1"; } catch { /* modo privado */ }
+  if (!visto) {
+    setTimeout(() => avisar("Para instalarla: toca Compartir y luego \"Agregar a inicio\"."), 3000);
+    try { localStorage.setItem("stop44_aviso_iphone", "1"); } catch { /* sin almacenamiento */ }
+  }
+}
+

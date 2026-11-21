@@ -2,6 +2,8 @@
 
 Ejecutar:  uvicorn app.main:app --reload
 Documentación interactiva:  http://127.0.0.1:8000/docs
+
+Importante: todo el dinero viaja en CENTAVOS de dólar. $12,50 = 1250.
 """
 
 from __future__ import annotations
@@ -23,8 +25,8 @@ from .usuarios import (DIAS_SESION, Cuentas, ErrorUsuario, crear_token, leer_tok
                        secreto)
 from .utils import hoy
 
-# Las fechas de las ventas van en hora de Colombia, aunque el servidor esté en otro país
-os.environ.setdefault("TZ", "America/Bogota")
+# Las fechas de las ventas van en hora de Ecuador, aunque el servidor esté en otro país
+os.environ.setdefault("TZ", "America/Guayaquil")
 if hasattr(time, "tzset"):
     time.tzset()
 
@@ -124,6 +126,7 @@ class CambioUsuario(BaseModel):
 
 
 class ProductoEntrada(BaseModel):
+    """precio y costo en centavos: $12,50 = 1250"""
     nombre: str
     precio: int = Field(gt=0)
     categoria: str = "Otros"
@@ -146,6 +149,7 @@ class ItemCarrito(BaseModel):
 
 
 class NuevaVenta(BaseModel):
+    """recibido: dinero que entregó el cliente en efectivo, en centavos"""
     items: list[ItemCarrito]
     metodo: str
     recibido: int | None = None

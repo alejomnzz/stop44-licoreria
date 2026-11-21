@@ -1,4 +1,8 @@
-"""Funciones de ayuda: formato de pesos, fechas y texto."""
+"""Funciones de ayuda: formato de dinero, fechas y texto.
+
+El dinero se guarda SIEMPRE en centavos (números enteros) para no tener errores
+de redondeo: $12,50 se guarda como 1250.
+"""
 
 from __future__ import annotations
 
@@ -11,19 +15,31 @@ MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
          "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 
 
-def cop(valor: float | int | None) -> str:
-    """Formatea un valor en pesos colombianos: 12500 -> '$12.500'."""
-    n = round(valor or 0)
+def dinero(centavos: int | None) -> str:
+    """Formatea centavos en dólares: 1250 -> '$12,50' y 123450 -> '$1.234,50'."""
+    n = round(centavos or 0)
     signo = "-" if n < 0 else ""
-    return f"{signo}${abs(n):,}".replace(",", ".")
+    dolares, cents = divmod(abs(n), 100)
+    return f"{signo}${dolares:,}".replace(",", ".") + f",{cents:02d}"
 
 
-def a_entero(texto: str | int | None) -> int:
-    """Convierte lo que escribe el usuario ('$12.500', '12500') en entero."""
-    if isinstance(texto, int):
-        return texto
-    digitos = re.sub(r"[^\d]", "", str(texto or ""))
-    return int(digitos) if digitos else 0
+def a_centavos(texto: str | int | float | None) -> int:
+    """Convierte lo que escribe el usuario en centavos.
+
+    '12,50' -> 1250   '12.50' -> 1250   '$12' -> 1200   '1.234,50' -> 123450
+    """
+    if isinstance(texto, (int, float)):
+        return round(texto * 100)
+    t = re.sub(r"[^\d,.]", "", str(texto or ""))
+    if not t:
+        return 0
+    if "," in t:                                   # coma = centavos, punto = miles
+        t = t.replace(".", "").replace(",", ".")
+    elif t.count(".") == 1 and len(t.split(".")[1]) <= 2:
+        pass                                       # 12.50 también se entiende
+    else:
+        t = t.replace(".", "")                     # 1.234 = mil doscientos treinta y cuatro
+    return round(float(t) * 100)
 
 
 def normalizar(texto: str | None) -> str:

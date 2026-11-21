@@ -30,7 +30,7 @@ def crear_admin(c):
 
 
 def crear_producto(c, **extra):
-    datos = {"nombre": "Aguardiente Antioqueño", "precio": 45000, "costo": 36000,
+    datos = {"nombre": "Aguardiente Norteño", "precio": 1250, "costo": 1000,    # centavos
              "stock": 10, "categoria": "Aguardiente", "presentacion": "750 ml"} | extra
     r = c.post("/api/productos", json=datos)
     assert r.status_code == 201, r.text
@@ -45,28 +45,28 @@ def test_sin_sesion_no_deja_entrar(cliente):
 def test_flujo_completo_admin(cliente):
     crear_admin(cliente)                                  # queda con sesión abierta
     assert cliente.get("/api/auth/yo").json()["nombre"] == "Dueña"
-    p = crear_producto(cliente, codigo="7702")
+    p = crear_producto(cliente, codigo="7861")
     assert p["margen"] == 20
 
     r = cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 2}],
-                                          "metodo": "Efectivo", "recibido": 100000})
+                                          "metodo": "Efectivo", "recibido": 3000})
     assert r.status_code == 201
     venta = r.json()
-    assert venta["total"] == 90000 and venta["vueltas"] == 10000 and venta["vendedor"] == "Dueña"
+    assert venta["total"] == 2500 and venta["vueltas"] == 500 and venta["vendedor"] == "Dueña"
 
-    assert cliente.get("/api/productos/codigo/7702").json()["stock"] == 8
-    assert cliente.get("/api/resumen").json()["total"] == 90000
-    assert "$90.000" in cliente.get("/api/cierre").json()["texto"]
+    assert cliente.get("/api/productos/codigo/7861").json()["stock"] == 8
+    assert cliente.get("/api/resumen").json()["total"] == 2500
+    assert "$25,00" in cliente.get("/api/cierre").json()["texto"]
 
     cliente.post(f"/api/ventas/{venta['id']}/anular")
-    assert cliente.get("/api/productos/codigo/7702").json()["stock"] == 10
+    assert cliente.get("/api/productos/codigo/7861").json()["stock"] == 10
 
 
 def test_errores_de_negocio_llegan_claros(cliente):
     crear_admin(cliente)
     p = crear_producto(cliente)
     r = cliente.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 50}],
-                                          "metodo": "Nequi"})
+                                          "metodo": "Deuna"})
     assert r.status_code == 400 and "Solo hay 10" in r.json()["detail"]
 
 
@@ -85,7 +85,7 @@ def test_vendedor_tiene_permisos_limitados(cliente):
     productos = vendedor.get("/api/productos").json()
     assert "costo" not in productos[0]                    # el vendedor no ve costos
     r = vendedor.post("/api/ventas", json={"items": [{"producto_id": p["id"], "cantidad": 1}],
-                                           "metodo": "Nequi"})
+                                           "metodo": "Deuna"})
     assert r.status_code == 201 and "ganancia" not in r.json()
     assert vendedor.post("/api/productos", json={"nombre": "X", "precio": 1000}).status_code == 403
     assert vendedor.get("/api/resumen").status_code == 403

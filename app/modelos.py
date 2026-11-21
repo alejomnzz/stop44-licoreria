@@ -9,7 +9,7 @@ CATEGORIAS = [
     "Ginebra", "Gaseosas y aguas", "Energizantes", "Snacks", "Cigarrillos",
     "Hielo", "Otros",
 ]
-METODOS_PAGO = ["Efectivo", "Nequi", "Daviplata", "Tarjeta", "Transferencia"]
+METODOS_PAGO = ["Efectivo", "Deuna"]
 ROLES = ["admin", "vendedor"]
 
 
@@ -33,6 +33,7 @@ class Usuario:
 
 @dataclass
 class Producto:
+    """Los valores de dinero (precio, costo) van en centavos: $12,50 = 1250."""
     nombre: str
     precio: int
     categoria: str = "Otros"

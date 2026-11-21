@@ -13,7 +13,7 @@ from pathlib import Path
 
 from . import db
 from .modelos import METODOS_PAGO, ItemVenta, Producto, ProductoVendido, ResumenDia, Venta
-from .utils import cop, fecha_corta, normalizar, sumar_dias
+from .utils import dinero, fecha_corta, normalizar, sumar_dias
 
 
 class ErrorTienda(Exception):
@@ -171,7 +171,7 @@ class Tienda:
         if metodo == "Efectivo":
             recibido = recibido or total
             if recibido < total:
-                raise ErrorTienda(f"Faltan {cop(total - recibido)}.")
+                raise ErrorTienda(f"Faltan {dinero(total - recibido)}.")
         else:
             recibido = None
         momento = self._ahora()
@@ -278,9 +278,9 @@ class Tienda:
         """Resumen del día listo para pegar en WhatsApp."""
         r = self.resumen(fecha)
         lineas = [f"*STOP 44 — Cierre del {fecha_corta(fecha)}*", "",
-                  f"Ventas: {r.num_ventas}", f"*Total: {cop(r.total)}*"]
-        lineas += [f"• {m}: {cop(t)}" for m, t in r.por_metodo.items()]
-        lineas += ["", f"Ganancia estimada: {cop(r.ganancia)}"]
+                  f"Ventas: {r.num_ventas}", f"*Total: {dinero(r.total)}*"]
+        lineas += [f"• {m}: {dinero(t)}" for m, t in r.por_metodo.items()]
+        lineas += ["", f"Ganancia estimada: {dinero(r.ganancia)}"]
         if r.productos:
             lineas += ["", "Más vendidos:"]
             lineas += [f"• {p.nombre} ({p.cantidad})" for p in r.productos[:5]]

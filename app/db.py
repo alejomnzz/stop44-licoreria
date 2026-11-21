@@ -1,4 +1,8 @@
-"""Conexión y tablas de la base de datos SQLite."""
+"""Conexión y tablas de la base de datos SQLite.
+
+Todo el dinero (costo, precio, total, recibido) se guarda en CENTAVOS de dólar
+como número entero: $12,50 = 1250. Así no hay errores de redondeo.
+"""
 
 from __future__ import annotations
 

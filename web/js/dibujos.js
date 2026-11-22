@@ -10,6 +10,7 @@ const COLORES = {
   Vodka: ["#dfe9f0", "#1c3f94"],
   Tequila: ["#e8c766", "#2b5d3a"],
   Ginebra: ["#cfe8e0", "#1d5c63"],
+  "Licor de hierbas": ["#2f4a1f", "#e0a526"],
   "Gaseosas y aguas": ["#d21f2b", "#ffffff"],
   Energizantes: ["#1c1c1c", "#9be15d"],
   Snacks: ["#f2b33d", "#d21f2b"],
@@ -28,7 +29,7 @@ function botella(c, t, corta = false) {
 }
 
 const FORMAS = {
-  Aguardiente: botella, Ron: botella, Vodka: botella, Tequila: botella, Ginebra: botella,
+  Aguardiente: botella, Ron: botella, Vodka: botella, Tequila: botella, Ginebra: botella, "Licor de hierbas": botella,
   Vino: (c, t) => `<rect x="26" y="2" width="8" height="16" rx="2" fill="#111"/>
     <path d="M26 18h8v8c6 3 10 8 10 15v31a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V41c0-7 4-12 10-15z" fill="${c}" ${borde}/>
     <rect x="18" y="46" width="24" height="16" rx="2" fill="${t}"/>`,

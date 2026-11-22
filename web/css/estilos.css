@@ -85,9 +85,10 @@ img { max-width: 100%; display: block; }
 
 @media (min-width: 900px) {
   .nav {
-    position: sticky; top: 76px; bottom: auto;
-    max-width: 1100px; margin: 0 auto 8px; padding: 0 16px;
-    background: none; clip-path: none; justify-content: flex-start; gap: 8px;
+    position: sticky; top: 64px; bottom: auto; z-index: 15;
+    max-width: 1100px; margin: 0 auto 2px; padding: 16px 16px 10px;
+    /* fondo de ladrillo fijo: lo que se desplaza pasa por debajo sin verse encima */
+    background: var(--muro) url("../img/ladrillos.svg") fixed; clip-path: none; justify-content: flex-start; gap: 8px;
   }
   .nav a {
     flex: none; max-width: none; flex-direction: row; gap: 8px;
@@ -268,6 +269,8 @@ body.sin-sesion .cabecera, body.sin-sesion .nav { display: none; }
 .buscador:focus-within { box-shadow: 0 0 0 3px var(--rojo), var(--sombra); }
 .categorias { display: flex; gap: 8px; overflow-x: auto; padding: 14px 2px 10px; scrollbar-width: none; }
 .categorias::-webkit-scrollbar { display: none; }
+/* Con mouse no se puede deslizar de lado: las categorías bajan a otra fila */
+@media (hover: hover) and (pointer: fine) { .categorias { flex-wrap: wrap; overflow-x: visible; } }
 .productos { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; padding-top: 4px; }
 .producto {
   position: relative; text-align: left; cursor: pointer;
@@ -350,7 +353,15 @@ body.sin-sesion .cabecera, body.sin-sesion .nav { display: none; }
 }
 @media (min-width: 900px) {
   .barra-carrito { display: none !important; }
-  .carrito { position: sticky; top: 140px; }
+  /* El panel nunca es más alto que la ventana: la lista de productos se desplaza
+     por dentro y el total, los métodos y el botón Cobrar siempre se ven. */
+  .carrito {
+    position: sticky; top: 140px;
+    display: flex; flex-direction: column;
+    max-height: calc(100dvh - 156px); overflow-y: auto; overscroll-behavior: contain;
+  }
+  .carrito > * { flex-shrink: 0; }
+  .carrito > .lineas { flex: 1 1 auto; min-height: 92px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
 }
 
 /* foto real del producto dentro de la tarjeta */

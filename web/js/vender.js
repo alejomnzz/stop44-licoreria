@@ -123,6 +123,9 @@ function agregar(id, boton) {
   if (boton) volarAlCarrito(boton);
   pintarProductos();
   pintarCarrito(true);
+  // un producto nuevo queda al final de la lista: mostrarlo
+  const lista = $(".lineas", raiz);
+  if (!actual && lista) lista.scrollTop = lista.scrollHeight;
 }
 
 function cambiar(id, delta) {
@@ -167,6 +170,7 @@ function pintarCarrito(sacudir = false) {
     caja.innerHTML = `<div class="carrito-vacio"><h2 class="subtitulo">Venta actual</h2><p class="tenue">Toca un producto o escanea su código para agregarlo.</p></div>`;
     return;
   }
+  const antes = $(".lineas", caja)?.scrollTop || 0;   // no perder dónde iba la lista
   const lineas = [...estado.carrito].map(([id, c]) => {
     const p = producto(id);
     return `<li class="linea">
@@ -205,6 +209,7 @@ function pintarCarrito(sacudir = false) {
     <button class="btn btn-rojo btn-ancho cobrar" id="cobrar" ${estado.cobrando ? "disabled" : ""}>
       ${estado.cobrando ? "Guardando…" : textoBotonCobrar(t)}
     </button>`;
+  $(".lineas", caja).scrollTop = antes;
 }
 
 function textoBotonCobrar(t) {

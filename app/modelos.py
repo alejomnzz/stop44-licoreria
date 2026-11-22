@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 CATEGORIAS = [
     "Aguardiente", "Ron", "Whisky", "Cerveza", "Vino", "Vodka", "Tequila",
-    "Ginebra", "Gaseosas y aguas", "Energizantes", "Snacks", "Cigarrillos",
+    "Ginebra", "Licor de hierbas", "Gaseosas y aguas", "Energizantes", "Snacks", "Cigarrillos",
     "Hielo", "Otros",
 ]
 METODOS_PAGO = ["Efectivo", "Deuna", "Fiado"]
